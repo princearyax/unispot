@@ -1,0 +1,15 @@
+#eclipse
+.project
+.classpath
+bin/
+.settings/
+.properties
+
+application.properties
+Temp.java
+Temp.class
+tempp.txt
+.env
+target
+/.metadata/
+
