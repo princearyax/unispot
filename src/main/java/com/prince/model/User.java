@@ -1,9 +1,12 @@
-package com.prince.entity;
+package com.prince.model;
 
 import java.time.LocalDateTime;
 import java.util.Set;
 
 import org.hibernate.annotations.CreationTimestamp;
+
+import com.prince.model.enums.Role;
+import com.prince.model.enums.UserStatus;
 
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
@@ -17,11 +20,19 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
-import lombok.Data;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "users")
-@Data //getters, seters, toString
+@Getter //not usin @data as gives diff , .equals() and hashcode
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder //Helps to create objects easily: User.builder().email(...).build()
 public class User {
 
     @Id
@@ -31,7 +42,12 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @Column(nullable = false)
+    private String password;
+
     @Enumerated(EnumType.STRING) //uses single enum field, string so that no default unsafe ordinal
+    @Column(nullable = false)
+    @Builder.Default
     private UserStatus status = UserStatus.PENDING;
 
     @ElementCollection(fetch = FetchType.EAGER) //Used for collections of value types (no entity, no ID)(not any entity) ,stored in a separate table
@@ -40,8 +56,6 @@ public class User {
     private Set<Role> roles;
 
     @CreationTimestamp
+    @Column(updatable = false)
     private LocalDateTime createdAt;
 }
-
-enum UserStatus { PENDING, ACTIVE, BANNED }
-enum Role { ROLE_USER, ROLE_ADMIN, ROLE_ANONYMOUS }
