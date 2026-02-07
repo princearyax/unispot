@@ -1,4 +1,4 @@
-package com.prince.model;
+package com.prince.entity;
 
 import java.time.LocalDateTime;
 import java.util.Set;
