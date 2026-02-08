@@ -55,6 +55,9 @@ public class Place {
     //where that place is
     private String location;
 
+    @Column(length = 500)
+    private String description;
+
     //stores list of cloudinary urls for images
     @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(name = "place_images", joinColumns = @JoinColumn(name = "place_id"))
@@ -68,7 +71,8 @@ public class Place {
 
     //soft delet flag
     @Column(name = "is_active")
-    private boolean active;
+    @Builder.Default //as java defaults to false, so
+    private boolean active = true;
 
     @CreationTimestamp //implicit column unless static
     @Column(updatable = false)
