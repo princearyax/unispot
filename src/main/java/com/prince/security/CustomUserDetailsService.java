@@ -20,7 +20,7 @@ import lombok.RequiredArgsConstructor;
 
 //spring security doesn't know my repo User, it needd some kind of translator, this service will look up User in my db and create UserDetails that spring security can understand
 @Service
-@RequiredArgsConstructor
+@RequiredArgsConstructor //better testability
 public class CustomUserDetailsService  implements UserDetailsService{
 
     private final UserRepository userRepository;
@@ -28,9 +28,7 @@ public class CustomUserDetailsService  implements UserDetailsService{
     @Override
     @Transactional(readOnly = true) // optimise
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        // TODO Auto-
         
-
         //find user
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("user not found with email" + email));
