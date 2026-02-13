@@ -4,8 +4,10 @@
 bin/
 .settings/
 .properties
+.vscode/
 
 application.properties
+application-local.properties
 Temp.java
 Temp.class
 tempp.txt
