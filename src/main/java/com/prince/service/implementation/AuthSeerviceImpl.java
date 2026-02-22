@@ -3,6 +3,7 @@ package com.prince.service.implementation;
 import java.util.Set;
 
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -53,7 +54,19 @@ public class AuthSeerviceImpl implements AuthService{
 
     @Override
     public AuthResponse login(LoginRequest request) {
-        throw new UnsupportedOperationException("Unimplemented method 'login'");
-    }
+        //authenticate the user
+        //this line gonna tigger CustomUserDetailsService -> loadUserByUsername
+        // It automatically checks the password hash & checks user status.
+        authenticationManager.authenticate(
+            new UsernamePasswordAuthenticationToken(
+                request.email(), 
+                request.password()
+            )
+        );
 
+        //generate jwt if we reach here, user eligible
+        String jwtToken = jwtUtils.generateToken(request.email());
+
+        return new AuthResponse(jwtToken, "Login success");
+    }
 }
