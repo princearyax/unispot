@@ -1,0 +1,34 @@
+spring:
+  application:
+    name: unispot-api
+    
+  # Enable Java 21 Virtual Threads (Project Loom)
+  threads:
+    virtual:
+      enabled: true
+      
+  datasource:
+    url: jdbc:postgresql://
+    username: 
+    password: 
+    
+  jpa:
+    hibernate:
+      ddl-auto: update # validate or Flyway in actual production
+    show-sql: true
+    properties:
+      hibernate:
+        "[format_sql]": true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+# Custom properties for JWT and Cloudinary
+unispot:
+  security:
+    jwt:
+      secret: 
+      expiration: 900000 # 15 minutes in ms
+      refresh-expiration: 604800000 # 7 days in ms
+  cloudinary:
+    cloud-name: 
+    api-key: 
+    api-secret: 
