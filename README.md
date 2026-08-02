@@ -43,31 +43,53 @@ UniSpot is built from the ground up for maximum throughput, low latency, and fut
   * **Refresh Tokens:** Long-lived (7 days), securely persisted in the database and delivered via an HTTP-only, secure cookie.
 * **Custom Filter Chain:** A custom `OncePerRequestFilter` intercepts requests to validate JWT signatures and populate the SecurityContext.
 * **Role-Based Access Control (RBAC):**
-  * Secured via `@PreAuthorize("hasRole('ADMIN')")`. For example, only campus administrators can create or modify `Place` entities, while authenticated `USER` roles have permissions to post ratings and reviews.
+  * Secured via `@PreAuthorize("hasRole('ADMIN')")`. For example, admin can delete any user or place.
 
----
 
-## 🗄️ Database Entity-Relationship Diagram (ERD)
+Using domain Driven Design (DDD)
+grouping by feature
 
-```text
-+-----------------------+       1:N       +-----------------------+
-|         USER          | <-------------> |        REVIEW         |
-+-----------------------+                 +-----------------------+
-| PK id                 |                 | PK id                 |
-|    username           |                 |    comment            |
-|    email              |                 |    rating             |
-|    password           |                 | FK user_id            |
-|    role (ADMIN/USER)  |                 | FK place_id           |
-+-----------------------+                 +-----------------------+
-            |                                         |
-            | 1:N                                     | 1:N
-            v                                         v
-+-----------------------+                 +-----------------------+
-|         PLACE         | <-------------> |      PLACE_IMAGE      |
-+-----------------------+                 +-----------------------+
-| PK id                 |                 | PK id                 |
-|    name               |                 |    secure_url         |
-|    description        |                 |    public_id          |
-|    coordinates        |                 | FK place_id           |
-|    version (@Version) |                 +-----------------------+
-+-----------------------+
+Isolation of Domain: Notice how the domain/ folder is at the top of each feature. It contains pure Java. It has no dependencies on Spring MVC (the presentation folder) or the database (the infrastructure folder).
+
+com.prince.unispot
+├── UniSpotApplication.java
+│
+├── core/                               # Cross-cutting concerns (Global)
+│   ├── config/                         # SecurityConfig, JpaAuditingConfig
+│   ├── domain/                         # AuditableEntity (Shared superclasses)
+│   ├── exception/                      # GlobalExceptionHandler
+│   └── security/                       # JwtFilter, SecurityUtils
+│
+├── user/                               # FEATURE: User Identity & Roles
+│   ├── domain/
+│   │   └── model/                      # User, Role (Enum)
+│   ├── application/
+│   │   └── service/                    # AuthService, UserService
+│   ├── infrastructure/
+│   │   └── persistence/                # UserRepository
+│   └── presentation/
+│       ├── controller/                 # AuthController
+│       └── dto/                        # LoginRequest, RegisterRequest
+│
+├── place/                              # FEATURE: Campus Places
+│   ├── domain/
+│   │   ├── model/                      # Place, Category (Enum)
+│   │   └── exception/                  # PlaceNotFoundException
+│   ├── application/
+│   │   └── service/                    # PlaceService
+│   ├── infrastructure/
+│   │   └── persistence/                # PlaceRepository
+│   └── presentation/
+│       ├── controller/                 # PlaceController
+│       └── dto/                        # PlaceResponse (Projections)
+│
+└── review/                             # FEATURE: Ratings & Reviews
+    ├── domain/
+    │   └── model/                      # Review
+    ├── application/
+    │   └── service/                    # ReviewService
+    ├── infrastructure/
+    │   └── persistence/                # ReviewRepository
+    └── presentation/
+        ├── controller/                 # ReviewController
+        └── dto/                        # ReviewRequest
