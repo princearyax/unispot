@@ -34,4 +34,6 @@ public class User extends BaseTimeEntity {
     // intentionally not @OneToMany for Places or Reviews here.
     // A User with 10,000 reviews would crash the JVM if lazily loaded by mistake.
     //query Reviews via the ReviewRepository instead.
+    // Review entity has a @ManyToOne User user, and holds FK
+    //db, jpa is inherently uidirectional, Fk, it works
 }

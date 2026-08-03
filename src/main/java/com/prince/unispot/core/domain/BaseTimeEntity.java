@@ -12,6 +12,7 @@ import java.time.Instant;
 
 @MappedSuperclass//Designates a class whose mapping information is inherited by its subclasses
 @EntityListeners(AuditingEntityListener.class) //intercepts database INSERT and UPDATE , automatically populates fields 
+//tells this entity to listen to JPA config
 @Getter
 @Setter
 public abstract class BaseTimeEntity {

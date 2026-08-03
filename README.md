@@ -93,3 +93,76 @@ com.prince.unispot
     └── presentation/
         ├── controller/                 # ReviewController
         └── dto/                        # ReviewRequest
+
+
+# 📍 UniSpot: Hyperlocal Campus Navigation API
+
+UniSpot is an enterprise-grade backend service designed to map and index granular, hyperlocal university campus locations (cafes, study rooms, hidden spots) often overlooked by global mapping providers. 
+
+Built with Java 21 and Spring Boot, it features an optimized N-Tier Clean Architecture designed to handle high-concurrency student traffic via Virtual Threads (Project Loom) and Optimistic Locking.
+
+## 🚀 Tech Stack & Dependencies
+
+The project relies on modern Java ecosystem standards defined in the `pom.xml`:
+
+*   **Core:** Java 21, Spring Boot 3.x
+*   **Web & Concurrency:** Spring Web (with `spring.threads.virtual.enabled=true`)
+*   **Database & ORM:** PostgreSQL, Spring Data JPA, Hibernate 6
+*   **Security:** Spring Security, JWT (JSON Web Tokens)
+*   **Media Storage:** Cloudinary Java SDK
+*   **Productivity:** Lombok
+
+## 🏗 System Architecture
+
+The codebase adheres strictly to **Package-by-Feature** and **Clean Architecture (Domain-Driven Design)** principles:
+*   **Domain Isolation:** Entities (`Place`, `User`, `Review`) and Enums are decoupled from web and infrastructure layers.
+*   **Optimistic Concurrency Control:** Prevents "Lost Update" anomalies on Place ratings using JPA `@Version`.
+*   **ID Batching:** Utilizes `GenerationType.SEQUENCE` with `allocationSize` to enable Hibernate JDBC Write-Behind batch inserts.
+*   **Security:** Stateless JWT authentication utilizing short-lived Access Tokens and HTTP-only Refresh Tokens. Role-Based Access Control (RBAC) enforces strict entity ownership (users can only delete their own reviews).
+
+## 🗄️ Database Schema & Relationships
+
+*   **`users`**: Aggregate Root. Extends `BaseTimeEntity`.
+*   **`places`**: Aggregate Root. Extends `AuditableEntity`. Tracks the creator via `created_by` for RBAC. Uses an `@ElementCollection` (Set) for `place_images` to prevent JPA delete anomalies.
+*   **`reviews`**: Associative Entity. Holds `@ManyToOne` foreign keys to both `users` and `places`. 
+
+*(Note: Bidirectional mappings are strictly managed. Aggregates like `User` do not hold `OneToMany` collections of reviews to prevent JVM memory exhaustion during lazy loading).*
+
+## 🔌 API Endpoints Specification
+
+### 1. Authentication (`/api/v1/auth`)
+| Method | Endpoint | Description | Access |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/register` | Register a new student account. | Public |
+| `POST` | `/login` | Authenticate and return JWT Access Token. | Public |
+| `POST` | `/refresh` | Exchange a valid Refresh Cookie for a new Access Token. | Public |
+
+### 2. Places (`/api/v1/places`)
+| Method | Endpoint | Description | Access |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/` | Get paginated places (uses `PlaceSummaryProjection`). | Public |
+| `GET` | `/{id}` | Get detailed view of a specific place including images. | Public |
+| `POST` | `/` | Create a new place on the campus map. | `USER`, `ADMIN` |
+| `DELETE`| `/{id}` | Delete a place (only by Creator or Admin). | Creator, `ADMIN` |
+| `POST` | `/{id}/images` | Upload multipart image to Cloudinary & link to Place. | Creator, `ADMIN` |
+
+### 3. Reviews (`/api/v1/reviews`)
+| Method | Endpoint | Description | Access |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/place/{placeId}` | Get paginated reviews for a specific place. | Public |
+| `POST` | `/place/{placeId}` | Add a review/rating to a place. | `USER` |
+| `DELETE`| `/{id}` | Delete a review (only by Creator or Admin). | Creator, `ADMIN` |
+
+## 🛠 Local Setup (Quickstart)
+
+1.  **Start PostgreSQL** via Docker:
+    ```bash
+    docker run --name unispot-db -e POSTGRES_PASSWORD=password -d -p 5432:5432 postgres
+    ```
+2.  **Environment Variables**: Configure the following in your IDE or `.bashrc`:
+    *   `JWT_SECRET`
+    *   `CLOUDINARY_URL`
+3.  **Run Application**:
+    ```bash
+    ./mvnw spring-boot:run
+    ```
