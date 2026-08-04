@@ -13,6 +13,7 @@ public class AuditorAwareImpl implements AuditorAware<Long> {
     @Override
     public Optional<Long> getCurrentAuditor() {
         //  get the cur from the active thread, ThreadLocal, here its VT
+        //older used threadlocal and we must ensure, when switch threaddlocal gets cleared so that other cant mistakenly identify as other!
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
         //if not logged

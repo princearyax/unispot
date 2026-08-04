@@ -166,3 +166,13 @@ The codebase adheres strictly to **Package-by-Feature** and **Clean Architecture
     ```bash
     ./mvnw spring-boot:run
     ```
+
+
+    ### 🏛️ Clean Architecture & DDD Nomenclature
+
+This project abandons the traditional "Package-by-Layer" monolith in favor of "Package-by-Feature" driven by Domain-Driven Design (DDD) principles. Each bounded context (e.g., `Place`, `Review`) is isolated into four distinct layers:
+
+*   **`domain/` (The Core):** Contains the enterprise business logic (Entities, Enums, Interfaces). It represents the purest form of the business rules. It has **zero dependencies** on external frameworks (no Spring imports, no database specific annotations beyond standard JPA).
+*   **`application/` (The Use Cases):** Coordinates the domain objects. It contains Services that implement business workflows (e.g., `PlaceService`). It dictates *what* needs to be done, but delegates the *how* to the infrastructure layer.
+*   **`infrastructure/` (The Adapters):** Contains implementations for external tools. This is where Spring Data JPA Repositories live, translating application queries into PostgreSQL dialects, or where Cloudinary SDK logic resides. It adapts the core domain to the outside world.
+*   **`presentation/` (The Delivery Mechanism):** Contains the REST Controllers and DTOs/Projections. It is strictly responsible for deserializing HTTP requests into Java objects and routing them to the Application layer.
