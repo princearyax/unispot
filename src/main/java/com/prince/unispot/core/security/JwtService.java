@@ -38,6 +38,8 @@ public class JwtService {
 
     //using generic, allows to extract one specific piece of data (a claim) from a JWT.
     //It decrypts, verifies and opens the token , then passes the contents to functional helper to pull out what i exactly asked 
+    //see above how its called
+    //the thing is when Caller call this method they provide a Function and that Function will run with one args(claims) as defined here and called at last: 
     private <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         final Claims claims = Jwts.parser() //sets up jjwt parser engine
                 .verifyWith(getSignInKey()) //calculates hmac, sha hash

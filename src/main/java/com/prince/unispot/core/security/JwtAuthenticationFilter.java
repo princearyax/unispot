@@ -53,6 +53,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 if (jwtService.isTokenValid(jwt)) {
                     //Create the AuthN object. 
                     //We pass userId as the principal. Our AuditorAwareImpl uses this!
+                    //it uses three things, principal, credentials, roles
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                             userId, 
                             null,  //no password, as jwt
