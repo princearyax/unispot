@@ -19,6 +19,20 @@ public class JwtService {
     @Value("${unispot.security.jwt.secret}") //pulls from application.prop/yml or env vars at runtime
     private String secretKey;
 
+    @Value("${unispot.security.jwt.expiration}")
+    private long jwtExpiration;
+
+    //for generatibg token, userId is stored as subject
+    public String generateToken(String userId, String role) {
+        return Jwts.builder()
+                .claim("role", role) // Custom claim for RBAC
+                .subject(userId)     // Standard claim for principal identity
+                .issuedAt(new Date(System.currentTimeMillis()))
+                .expiration(new Date(System.currentTimeMillis() + jwtExpiration))
+                .signWith(getSignInKey())
+                .compact();
+    }
+
     // We store the User ID as the "Subject" of the JWT
     public String extractUserId(String token) {
         return extractClaim(token, Claims::getSubject);
