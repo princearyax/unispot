@@ -3,6 +3,8 @@ package com.prince.unispot.review.presentation.controller;
 import com.prince.unispot.review.application.service.ReviewService;
 import com.prince.unispot.review.domain.model.Review;
 import com.prince.unispot.review.presentation.dto.ReviewRequest;
+
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -20,7 +22,7 @@ public class ReviewController {
 
     @PostMapping("/place/{placeId}")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-    public ResponseEntity<Void> addReview(@PathVariable Long placeId, @RequestBody ReviewRequest request) {
+    public ResponseEntity<Void> addReview(@Valid @PathVariable Long placeId, @RequestBody ReviewRequest request) {
         reviewService.addReview(placeId, request);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }

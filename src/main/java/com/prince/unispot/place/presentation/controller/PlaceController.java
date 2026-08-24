@@ -4,6 +4,8 @@ import com.prince.unispot.place.application.service.PlaceService;
 import com.prince.unispot.place.domain.model.Category;
 import com.prince.unispot.place.presentation.dto.PlaceRequest;
 import com.prince.unispot.place.presentation.dto.PlaceSummaryProjection;
+
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -21,7 +23,7 @@ public class PlaceController {
 
     @PostMapping
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-    public ResponseEntity<Void> createPlace(@RequestBody PlaceRequest request) {
+    public ResponseEntity<Void> createPlace(@Valid @RequestBody PlaceRequest request) {
         placeService.createPlace(request);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
