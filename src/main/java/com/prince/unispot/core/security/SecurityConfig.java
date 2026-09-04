@@ -24,8 +24,11 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            //well jwt immune so
             //sud ensure cors policy to protect refresh route tho
+            //set some allowed methods/origin/headers etc in corsConfigurationSource()
+
+            
+            //well jwt immune so
             .csrf(AbstractHttpConfigurer::disable)
             
             //defining endpoint authZ, rules evaluated top to bot, so specific ones above

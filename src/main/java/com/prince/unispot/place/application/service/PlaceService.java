@@ -5,6 +5,8 @@ import com.prince.unispot.place.domain.model.Place;
 import com.prince.unispot.place.infrastructure.persistence.PlaceRepository;
 import com.prince.unispot.place.presentation.dto.PlaceRequest;
 import com.prince.unispot.place.presentation.dto.PlaceSummaryProjection;
+import com.prince.unispot.review.infrastructure.persistence.ReviewRepository;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -19,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class PlaceService {
 
     private final PlaceRepository placeRepository;
+    private final ReviewRepository reviewRepository;
 
     @Transactional
     public Place createPlace(PlaceRequest request) {
@@ -51,6 +54,9 @@ public class PlaceService {
             throw new AccessDeniedException("You do not have permission to delete this place.");
         }
 
+        //Bulk delete reviews directly in DB (1 query, 0 memory overhead), not relying on cascade removal
+        reviewRepository.deleteByPlaceId(placeId);
+    
         placeRepository.delete(place);
     }
 }
