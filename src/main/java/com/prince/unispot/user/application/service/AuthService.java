@@ -1,5 +1,6 @@
 package com.prince.unispot.user.application.service;
 
+import com.prince.unispot.core.security.AppUserDetails;
 import com.prince.unispot.core.security.JwtService;
 import com.prince.unispot.user.domain.model.Role;
 import com.prince.unispot.user.domain.model.User;
@@ -10,6 +11,7 @@ import com.prince.unispot.user.presentation.dto.RegisterRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,19 +51,18 @@ public class AuthService {
         // delegate auth to Spring Security's Authentication Manager
         // will securely hash the provided password and compare it against the database.
         //not doing by if (passwordEncoder.matches), cuz spring will take care of timing related attacks, and will send const delay
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.email(),
-                        request.password()
-                )
+        Authentication authentication = authenticationManager.authenticate(
+            new UsernamePasswordAuthenticationToken(
+                request.email(),
+                request.password()
+            )
         );
 
-        //here, authentication succeeded.
-        User user = userRepository.findByEmail(request.email())
-                .orElseThrow(); // Safe to call get() 
+        // get the in-memory object (no DB hits twice)
+        AppUserDetails userDetails = (AppUserDetails) authentication.getPrincipal();
 
-        String jwtToken = jwtService.generateToken(user.getId().toString(), user.getRole().name());
-        
-        return new AuthResponse(jwtToken, user.getRole().name());
+        String jwtToken = jwtService.generateToken(userDetails.id().toString(), userDetails.role());
+    
+        return new AuthResponse(jwtToken, userDetails.role());
     }
 }
