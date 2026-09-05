@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.time.Instant;
 import java.util.stream.Collectors;
 
+//this is part of spring MVC, it sees exception raise dby controller after filters etc, so exception in filters are just bubbled to server(tomcat eg)
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 

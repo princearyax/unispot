@@ -70,6 +70,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             // Malformed token, signature exception, or expired token
             // Log it, but do not crash-- context remains empty, and Spring Security will return 403 Forbidden. otherwise 500 internal server error if not catches here
             logger.warn("JWT Validation failed: " + e.getMessage());
+
+            //if wanna raise exception here, need to use AuthenticationEntryPoint or HandlerExceptionResolver and will forward direct to GlobalExceptionHandler from here, otherwise its just generic 403, so that UX , frontend knows what fails
         }
 
         //Continue the chain
