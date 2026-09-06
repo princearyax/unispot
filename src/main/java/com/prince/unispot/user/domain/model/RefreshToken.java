@@ -6,7 +6,9 @@ import java.time.Instant;
 
 //stateful refresh token, in db, so taht can revoke/logout/ban user
 @Entity
-@Table(name = "refresh_tokens")
+@Table(name = "refresh_tokens", indexes = {
+    @Index(name = "idx_refresh_token", columnList = "token", unique = true)
+})
 @Getter
 @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -20,7 +22,7 @@ public class RefreshToken {
     private Long id;
 
     //will use cryptographically secure random UUID string
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false, unique = true, length = 36) //uuid are 36 chars
     private String token;
 
     @ManyToOne(fetch = FetchType.LAZY)
