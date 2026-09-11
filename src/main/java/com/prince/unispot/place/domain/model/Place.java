@@ -10,7 +10,9 @@ import lombok.*;
 
 @Entity
 @Table(name = "places", indexes = {
-    @Index(name = "idx_place_category", columnList = "category")
+    // Covers: WHERE category = ? ORDER BY id DESC
+    //helps in keyset pagination
+    @Index(name = "idx_place_category_id", columnList = "category, id DESC")
 })
 @Getter
 @Setter

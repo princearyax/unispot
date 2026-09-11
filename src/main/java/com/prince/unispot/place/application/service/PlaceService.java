@@ -8,8 +8,11 @@ import com.prince.unispot.place.presentation.dto.PlaceSummaryProjection;
 import com.prince.unispot.review.infrastructure.persistence.ReviewRepository;
 
 import lombok.RequiredArgsConstructor;
+
+import java.util.List;
+
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Slice;
+// import org.springframework.data.domain.Slice;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -34,9 +37,15 @@ public class PlaceService {
         return placeRepository.save(place);
     }
 
+    // @Transactional(readOnly = true)
+    // public Slice<PlaceSummaryProjection> getPlacesByCategory(Category category, Pageable pageable) {
+    //     return placeRepository.findByCategory(category, pageable);
+    // }
+
+    //updated for keyset pagination
     @Transactional(readOnly = true)
-    public Slice<PlaceSummaryProjection> getPlacesByCategory(Category category, Pageable pageable) {
-        return placeRepository.findByCategory(category, pageable);
+    public List<PlaceSummaryProjection> getPlacesByCursor(Category category, Long cursor, Pageable pageable) {
+        return placeRepository.findByCategoryAndIdLessThanOrderByIdDesc(category, cursor, pageable);
     }
 
     @Transactional
