@@ -8,27 +8,28 @@ spring:
       enabled: true
       
   datasource:
-    url: jdbc:postgresql://
-    username: 
+    # url: jdbc:postgresql://
+    url: jdbc:postgresql://localhost:5432/practice
+    username: postgres
     password: 
     
   jpa:
     hibernate:
-      ddl-auto: update # validate or Flyway in actual production
+      ddl-auto: create-drop # validate or Flyway in actual production
     show-sql: true
     properties:
       hibernate:
         "[format_sql]": true
-        dialect: org.hibernate.dialect.PostgreSQLDialect
+  data:
+    web:
+      pageable:
+        max-page-size: 100 #so put ceiling on client request
 
 # Custom properties for JWT and Cloudinary
 unispot:
   security:
     jwt:
       secret: 
+      #must be 32 bytes, here raw text hence 32 char
       expiration: 900000 # 15 minutes in ms
       refresh-expiration: 604800000 # 7 days in ms
-  cloudinary:
-    cloud-name: 
-    api-key: 
-    api-secret: 
