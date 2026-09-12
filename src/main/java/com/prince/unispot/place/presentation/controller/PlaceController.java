@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 
 import java.util.List;
 
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 // import org.springframework.data.domain.Slice;
 // import org.springframework.data.domain.Sort;
@@ -51,8 +52,12 @@ public class PlaceController {
         
         //if is null (first page), pass Long.MAX_VALUE to get the absolute latest
         Long cursor = (lastId != null) ? lastId : Long.MAX_VALUE;
+
+        //remove any client-injected sorts or page numbers. 
+        //we just want size, limit
+        Pageable cleanPageable = PageRequest.of(0, pageable.getPageSize());
         
-        return ResponseEntity.ok(placeService.getPlacesByCursor(category, cursor, pageable));
+        return ResponseEntity.ok(placeService.getPlacesByCursor(category, cursor, cleanPageable));
     }
 
     @DeleteMapping("/{id}")
