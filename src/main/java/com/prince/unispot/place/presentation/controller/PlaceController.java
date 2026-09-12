@@ -3,7 +3,7 @@ package com.prince.unispot.place.presentation.controller;
 import com.prince.unispot.place.application.service.PlaceService;
 import com.prince.unispot.place.domain.model.Category;
 import com.prince.unispot.place.presentation.dto.PlaceRequest;
-import com.prince.unispot.place.presentation.dto.PlaceSummaryProjection;
+import com.prince.unispot.place.presentation.dto.PlaceSummaryDto;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -44,7 +44,7 @@ public class PlaceController {
 
     //optimised pagination by cursor
     @GetMapping("/cursor")
-    public ResponseEntity<List<PlaceSummaryProjection>> getPlacesByCursor(
+    public ResponseEntity<List<PlaceSummaryDto>> getPlacesByCursor(
             @RequestParam Category category,
             @RequestParam(required = false) Long lastId,
             @PageableDefault(size = 20) Pageable pageable) {

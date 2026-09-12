@@ -2,7 +2,7 @@ package com.prince.unispot.place.presentation.dto;
 
 import com.prince.unispot.place.domain.model.Category;
 
-public interface PlaceSummaryProjection {
+public interface PlaceSummaryProjectionExample {
     Long getId();
     String getName();
     Category getCategory();

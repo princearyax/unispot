@@ -4,7 +4,7 @@ import com.prince.unispot.place.domain.model.Category;
 import com.prince.unispot.place.domain.model.Place;
 import com.prince.unispot.place.infrastructure.persistence.PlaceRepository;
 import com.prince.unispot.place.presentation.dto.PlaceRequest;
-import com.prince.unispot.place.presentation.dto.PlaceSummaryProjection;
+import com.prince.unispot.place.presentation.dto.PlaceSummaryDto;
 import com.prince.unispot.review.infrastructure.persistence.ReviewRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -44,7 +44,7 @@ public class PlaceService {
 
     //updated for keyset pagination
     @Transactional(readOnly = true)
-    public List<PlaceSummaryProjection> getPlacesByCursor(Category category, Long cursor, Pageable pageable) {
+    public List<PlaceSummaryDto> getPlacesByCursor(Category category, Long cursor, Pageable pageable) {
         return placeRepository.findByCategoryAndIdLessThanOrderByIdDesc(category, cursor, pageable);
     }
 
