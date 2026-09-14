@@ -4,6 +4,8 @@ Community Platform for University Ecosystems
 > A high-performance, enterprise-grade hyperlocal navigation and discovery backend engineered specifically for specialized campus environments. UniSpot bridges the gap between static university maps and dynamic community interaction by offering real-time place reviews, secure media handling, and robust access controls.
 
 ---
+Note: A Prototype readme, as of now.
+---
 
 ## 🛠️ Tech Stack
 
@@ -157,8 +159,12 @@ The codebase adheres strictly to **Package-by-Feature** and **Clean Architecture
 
 1.  **Start PostgreSQL** via Docker:
     ```bash
-    docker run --name unispot-db -e POSTGRES_PASSWORD=password -d -p 5432:5432 postgres
+    docker run --name unispot-db -e POSTGRES_DB=unispot -e POSTGRES_PASSWORD=password -d -p 5432:5432 postgres:16
+
+    docker exec -it unispot-db psql -U postgres -d unispot -c "UPDATE users SET role = 'ADMIN' WHERE email = 'you@example.com';"
     ```
+    be sure to login again, to get the new token as admin role
+
 2.  **Environment Variables**: Configure the following in your IDE or `.bashrc`:
     *   `JWT_SECRET`
     *   `CLOUDINARY_URL`
