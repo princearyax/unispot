@@ -5,6 +5,7 @@ import com.prince.unispot.place.infrastructure.persistence.PlaceRepository;
 import com.prince.unispot.review.domain.model.Review;
 import com.prince.unispot.review.infrastructure.persistence.ReviewRepository;
 import com.prince.unispot.review.presentation.dto.ReviewRequest;
+import com.prince.unispot.review.presentation.dto.ReviewResponse;
 import com.prince.unispot.user.domain.model.User;
 import com.prince.unispot.user.infrastructure.persistence.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -45,9 +46,9 @@ public class ReviewService {
     }
 
     @Transactional(readOnly = true)
-    public Slice<Review> getReviewsForPlace(Long placeId, Pageable pageable) {
-        return reviewRepository.findByPlaceId(placeId, pageable);
-    }
+    public Slice<ReviewResponse> getReviewsForPlace(Long placeId, Pageable pageable) {
+    return reviewRepository.findByPlaceId(placeId, pageable).map(ReviewResponse::from);
+}
 
     @Transactional
     public void deleteReview(Long reviewId) {

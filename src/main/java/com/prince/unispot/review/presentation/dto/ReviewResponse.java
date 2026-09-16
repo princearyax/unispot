@@ -13,6 +13,6 @@ public record ReviewResponse(
             review.getId(), review.getRating(), review.getComment(),
             review.getPlace().getId(), review.getUser().getId(),
             review.getCreatedAt()
-        );
+        ); //.getId doesnt trigger db hit, it uses proxy
     }
 }
