@@ -13,7 +13,6 @@ Note: A Prototype readme, as of now.
 *   [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.3%20%2B-brightgreen?style=flat-square&logo=springboot)](https://spring.io/projects/spring-boot)
 *   [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue?style=flat-square&logo=postgresql)](https://www.postgresql.org/)
 *   [![Spring Security](https://img.shields.io/badge/Spring%20Security-JWT-red?style=flat-square&logo=springsecurity)](https://spring.io/projects/spring-security)
-*   [![Cloudinary](https://img.shields.io/badge/Cloudinary-Media%20SDK-orange?style=flat-square&logo=cloudinary)](https://cloudinary.com/)
 *   [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker)](https://www.docker.com/)
 
 ---
@@ -111,7 +110,6 @@ The project relies on modern Java ecosystem standards defined in the `pom.xml`:
 *   **Web & Concurrency:** Spring Web (with `spring.threads.virtual.enabled=true`)
 *   **Database & ORM:** PostgreSQL, Spring Data JPA, Hibernate 6
 *   **Security:** Spring Security, JWT (JSON Web Tokens)
-*   **Media Storage:** Cloudinary Java SDK
 *   **Productivity:** Lombok
 
 ## 🏗 System Architecture
@@ -146,7 +144,6 @@ The codebase adheres strictly to **Package-by-Feature** and **Clean Architecture
 | `GET` | `/{id}` | Get detailed view of a specific place including images. | Public |
 | `POST` | `/` | Create a new place on the campus map. | `USER`, `ADMIN` |
 | `DELETE`| `/{id}` | Delete a place (only by Creator or Admin). | Creator, `ADMIN` |
-| `POST` | `/{id}/images` | Upload multipart image to Cloudinary & link to Place. | Creator, `ADMIN` |
 
 ### 3. Reviews (`/api/v1/reviews`)
 | Method | Endpoint | Description | Access |
