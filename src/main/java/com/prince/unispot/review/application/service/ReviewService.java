@@ -1,5 +1,6 @@
 package com.prince.unispot.review.application.service;
 
+import com.prince.unispot.core.exception.ResourceNotFoundException;
 import com.prince.unispot.place.domain.model.Place;
 import com.prince.unispot.place.infrastructure.persistence.PlaceRepository;
 import com.prince.unispot.review.domain.model.Review;
@@ -27,6 +28,11 @@ public class ReviewService {
 
     @Transactional
     public void addReview(Long placeId, ReviewRequest request) {
+        //if not exisst throw 404
+        if (!placeRepository.existsById(placeId)) {
+            throw new ResourceNotFoundException("Place not found with id: " + placeId);
+        }
+
         Long currentUserId = Long.valueOf(SecurityContextHolder.getContext().getAuthentication().getName());
 
         //not using findById() , but this jpa repo method, as
@@ -47,13 +53,13 @@ public class ReviewService {
 
     @Transactional(readOnly = true)
     public Slice<ReviewResponse> getReviewsForPlace(Long placeId, Pageable pageable) {
-    return reviewRepository.findByPlaceId(placeId, pageable).map(ReviewResponse::from);
-}
+        return reviewRepository.findByPlaceId(placeId, pageable).map(ReviewResponse::from);
+    }
 
     @Transactional
     public void deleteReview(Long reviewId) {
         Review review = reviewRepository.findById(reviewId)
-                .orElseThrow(() -> new IllegalArgumentException("Review not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Review not found with id: " + reviewId));
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         Long currentUserId = Long.valueOf(auth.getName());

@@ -1,5 +1,6 @@
 package com.prince.unispot.user.application.service;
 
+import com.prince.unispot.core.exception.InvalidTokenException;
 import com.prince.unispot.user.domain.model.RefreshToken;
 import com.prince.unispot.user.infrastructure.persistence.RefreshTokenRepository;
 import com.prince.unispot.user.infrastructure.persistence.UserRepository;
@@ -39,7 +40,7 @@ public class RefreshTokenService {
     public RefreshToken verifyExpiration(RefreshToken token) {
         if (token.getExpiryDate().compareTo(Instant.now()) < 0) {
             refreshTokenRepository.delete(token);
-            throw new IllegalArgumentException("Refresh token was expired. Please make a new signin request");
+            throw new InvalidTokenException("Refresh token has expired. Please sign in again.");
         }
         return token;
     }

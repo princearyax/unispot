@@ -21,6 +21,7 @@ public interface PlaceRepository extends JpaRepository<Place, Long> {
     Slice<PlaceSummaryProjectionExample> findByCategory(Category category, Pageable pageable);
 
     // Used for RBAC authorization checks before deletion
+    //unused rn.
     boolean existsByIdAndCreatedBy(Long id, Long createdBy);
 
     //JPA automatically parses this method name into:

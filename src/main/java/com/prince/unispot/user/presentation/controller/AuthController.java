@@ -1,5 +1,6 @@
 package com.prince.unispot.user.presentation.controller;
 
+import com.prince.unispot.core.exception.InvalidTokenException;
 import com.prince.unispot.user.application.service.AuthResult;
 import com.prince.unispot.user.application.service.AuthService;
 import com.prince.unispot.user.presentation.dto.AuthResponse;
@@ -42,6 +43,9 @@ public class AuthController {
     //@CookieValue automatically extracts the token from the HTTP request header
     @PostMapping("/refresh")
     public ResponseEntity<AuthResponse> refresh(@CookieValue(name = "refreshToken") String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new InvalidTokenException("Refresh token cookie missing.");
+        }
         AuthResult result = authService.refreshToken(refreshToken);
         return ResponseEntity.ok(new AuthResponse(result.accessToken(), result.role()));
     }

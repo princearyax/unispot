@@ -1,5 +1,7 @@
 package com.prince.unispot.user.application.service;
 
+import com.prince.unispot.core.exception.DuplicateResourceException;
+import com.prince.unispot.core.exception.InvalidTokenException;
 import com.prince.unispot.core.security.AppUserDetails;
 import com.prince.unispot.core.security.JwtService;
 import com.prince.unispot.user.domain.model.RefreshToken;
@@ -29,7 +31,7 @@ public class AuthService {
     @Transactional
     public AuthResult register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.email())) {
-            throw new IllegalArgumentException("Email is already in use.");
+            throw new DuplicateResourceException("An account with this email already exists.");
         }
 
         User user = User.builder()
@@ -79,7 +81,7 @@ public class AuthService {
                 //return the same refresh token unless implementing rotation to pretect from token theft. without rotation access token remains valid for the time it was generated
                 return new AuthResult(accessToken, tokenString, user.getRole().name()); 
             })
-            .orElseThrow(() -> new IllegalArgumentException("Invalid refresh token"));
+            .orElseThrow(() -> new InvalidTokenException("Invalid refresh token"));
     }
 
     @Transactional

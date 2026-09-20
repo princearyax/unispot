@@ -1,5 +1,6 @@
 package com.prince.unispot.place.application.service;
 
+import com.prince.unispot.core.exception.ResourceNotFoundException;
 import com.prince.unispot.place.domain.model.Category;
 import com.prince.unispot.place.domain.model.Place;
 import com.prince.unispot.place.infrastructure.persistence.PlaceRepository;
@@ -51,7 +52,7 @@ public class PlaceService {
     @Transactional
     public void deletePlace(Long placeId) {
         Place place = placeRepository.findById(placeId)
-                .orElseThrow(() -> new IllegalArgumentException("Place not found"));
+                        .orElseThrow(() -> new ResourceNotFoundException("Place not found with id: " + placeId));
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         Long currentUserId = Long.valueOf(auth.getName());
