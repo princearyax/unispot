@@ -55,6 +55,7 @@ public class AuthService {
         // delegate auth to Spring Security's Authentication Manager
         // will securely hash the provided password and compare it against the database.
         //not doing by if (passwordEncoder.matches), cuz spring will take care of timing related attacks, and will send const delay
+        //can throm BadCredentialsExcep. - AuthenticationExcep. type
         Authentication authentication = authenticationManager.authenticate(
             new UsernamePasswordAuthenticationToken(
                 request.email(),

@@ -29,6 +29,8 @@ public class ReviewService {
     @Transactional
     public void addReview(Long placeId, ReviewRequest request) {
         //if not exisst throw 404
+        //doing this fires SELECT 1 ... WHERE id = ? LIMIT 1
+        //cheaper than SELECT * and can use proxy
         if (!placeRepository.existsById(placeId)) {
             throw new ResourceNotFoundException("Place not found with id: " + placeId);
         }

@@ -1,3 +1,5 @@
+//need to give explicit default to avg rating and no. of reviews when using flyway, migraton etc
+
 package com.prince.unispot.place.domain.model;
 
 import java.util.HashSet;
@@ -37,6 +39,14 @@ public class Place extends AuditableEntity{
     @Column(nullable = false, length = 50)
     private Category category;
     //geometry data types for location
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Double averageRating = 0.0;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer reviewCount = 0;
 
     //optimistic concurrency
     @Version
