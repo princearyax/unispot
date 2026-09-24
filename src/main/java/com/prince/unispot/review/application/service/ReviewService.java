@@ -1,6 +1,7 @@
 package com.prince.unispot.review.application.service;
 
 import com.prince.unispot.core.exception.ResourceNotFoundException;
+import com.prince.unispot.core.security.AuthorizationHelper;
 import com.prince.unispot.place.domain.model.Place;
 import com.prince.unispot.place.infrastructure.persistence.PlaceRepository;
 import com.prince.unispot.review.domain.model.Review;
@@ -12,8 +13,6 @@ import com.prince.unispot.user.infrastructure.persistence.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +24,7 @@ public class ReviewService {
     private final ReviewRepository reviewRepository;
     private final PlaceRepository placeRepository;
     private final UserRepository userRepository;
+    private final AuthorizationHelper authorizationHelper;
 
     @Transactional
     public void addReview(Long placeId, ReviewRequest request) {
@@ -59,20 +59,15 @@ public class ReviewService {
     }
 
     @Transactional
-    public void deleteReview(Long reviewId) {
+    public Long deleteReview(Long reviewId) {
         Review review = reviewRepository.findById(reviewId)
                 .orElseThrow(() -> new ResourceNotFoundException("Review not found with id: " + reviewId));
 
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        Long currentUserId = Long.valueOf(auth.getName());
-        boolean isAdmin = auth.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        authorizationHelper.requireOwnerOrAdmin(review.getUser().getId(),
+                "You can only delete your own reviews.");
 
-        //rbac 
-        if (!isAdmin && !review.getUser().getId().equals(currentUserId)) {
-            throw new AccessDeniedException("You can only delete your own reviews.");
-        }
-
+        Long placeId = review.getPlace().getId();
         reviewRepository.delete(review);
+        return placeId;
     }
 }
