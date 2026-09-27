@@ -28,8 +28,13 @@ spring:
 # Custom properties for JWT and Cloudinary
 unispot:
   security:
+    cors:
+      allowed-origins: #vite etc, some common
     jwt:
       secret: 
       #must be 32 bytes, here raw text hence 32 char
       expiration: 900000 # 15 minutes in ms
       refresh-expiration: 604800000 # 7 days in ms
+      refresh-cookie:
+        same-site: None   #Lax/Strict if frontend+backend share a registrable domain (like both: both *.unispot.com)
+        secure: true  # None requires Secure=true by spec, modern browsers exempt localhost from needing real HTTPS for this. special priviledge xd

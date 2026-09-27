@@ -9,6 +9,8 @@ import com.prince.unispot.user.presentation.dto.RegisterRequest;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
@@ -22,6 +24,12 @@ public class AuthController {
 
     private final AuthService authService;
     private final long REFRESH_TOKEN_EXPIRATION_SECONDS = 7 * 24 * 60 * 60;//7 days
+
+    @Value ("${unispot.security.jwt.refresh-cookie.same-site}")
+    private String refreshCookieSameSite;
+
+    @Value("${unispot.security.jwt.refresh-cookie.secure}")
+    private boolean refreshCookieSecure;
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
@@ -64,9 +72,9 @@ public class AuthController {
     private ResponseCookie createCookie(String token, long maxAge) {
         return ResponseCookie.from("refreshToken", token)
                 .httpOnly(true) // blocks js XSS
-                .secure(true) // Requires HTTPS 
+                .secure(refreshCookieSecure) // if HTTPS  required
                 .path("/api/v1/auth") // browser sends this cookie to /auth endpoints, saving bandwidth on other
-                .sameSite("Strict") // CSRF protection
+                .sameSite(refreshCookieSameSite) // CSRF protection
                 .maxAge(maxAge)
                 .build();
     }
