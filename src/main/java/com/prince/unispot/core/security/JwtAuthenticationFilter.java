@@ -72,6 +72,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             logger.warn("JWT Validation failed: " + e.getMessage());
 
             //if wanna raise exception here, need to use AuthenticationEntryPoint or HandlerExceptionResolver and will forward direct to GlobalExceptionHandler from here, otherwise its just generic 403, so that UX , frontend knows what fails
+
+            //done now!
         }
 
         //Continue the chain
