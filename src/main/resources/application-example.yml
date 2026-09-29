@@ -27,6 +27,9 @@ spring:
 
 # Custom properties for JWT and Cloudinary
 unispot:
+  admin:
+    bootstrap-email: ${ADMIN_EMAIL:}
+    bootstrap-password: ${ADMIN_PASSWORD:}
   security:
     cors:
       allowed-origins: #vite etc, some common
