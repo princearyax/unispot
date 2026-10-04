@@ -50,6 +50,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/auth/**").permitAll() // 4 registration and login
                 .requestMatchers(HttpMethod.GET, "/api/v1/places/**").permitAll() // for viewing
                 .requestMatchers(HttpMethod.GET, "/api/v1/reviews/**").permitAll() 
+                .requestMatchers("/api/v1/admin/**").hasRole("ADMIN") 
                 .anyRequest().authenticated() // Everything else (POST, DELETE) requires a valid JWT
             )
             

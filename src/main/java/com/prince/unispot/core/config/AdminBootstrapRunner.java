@@ -23,6 +23,7 @@ public class AdminBootstrapRunner implements ApplicationRunner {
     private final PasswordEncoder passwordEncoder;
 
     @Value("${unispot.admin.bootstrap-email:}")
+    //${property-name : default-value},, so here if not provided its empty string
     private String bootstrapEmail;
 
     @Value("${unispot.admin.bootstrap-password:}")
