@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
@@ -88,6 +89,13 @@ public class GlobalExceptionHandler {
         @ExceptionHandler(IllegalArgumentException.class)
         public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex, HttpServletRequest request) {
                 return build(HttpStatus.BAD_REQUEST, "Bad Request", ex.getMessage(), request);
+        }
+
+        // 400 malformed JSON body, or a body value that can't convert to the target
+        //mybe bad enum type, or bad query params
+        @ExceptionHandler(HttpMessageNotReadableException.class)
+        public ResponseEntity<ErrorResponse> handleUnreadableBody(HttpMessageNotReadableException ex, HttpServletRequest request) {
+                return build(HttpStatus.BAD_REQUEST, "Bad Request", "Malformed request body.", request);
         }
 
         // 500 for,  unanticipated. 
