@@ -35,6 +35,16 @@ public class RefreshTokenService {
         return refreshTokenRepository.save(refreshToken); //Insert query
     }
 
+    //to rotate refresh-token
+    @Transactional
+    public RefreshToken rotateRefreshToken(RefreshToken existingToken) {
+        verifyExpiration(existingToken);
+        Long userId = existingToken.getUser().getId();
+        refreshTokenRepository.delete(existingToken);
+        refreshTokenRepository.flush();
+        return createRefreshToken(userId);
+    }
+
     //called during refresh flow, throws if invalid
     @Transactional
     public RefreshToken verifyExpiration(RefreshToken token) {
@@ -47,7 +57,7 @@ public class RefreshTokenService {
 
     @Transactional
     public void deleteByUserId(Long userId) {
-        refreshTokenRepository.deleteByUser(userRepository.getReferenceById(userId));
+        refreshTokenRepository.deleteByUserId(userId);
     }
 
     @Transactional(readOnly = true) //as no modifying just read

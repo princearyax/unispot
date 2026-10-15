@@ -73,16 +73,19 @@ public class AuthService {
     }
 
     @Transactional
+    //the received token is refresh token from cookie
     public AuthResult refreshToken(String tokenString) {
-        return refreshTokenService.findByToken(tokenString)
-            .map(refreshTokenService::verifyExpiration)
-            .map(RefreshToken::getUser)
-            .map(user -> {
-                String accessToken = jwtService.generateToken(user.getId().toString(), user.getRole().name());
-                //return the same refresh token unless implementing rotation to pretect from token theft. without rotation access token remains valid for the time it was generated
-                return new AuthResult(accessToken, tokenString, user.getRole().name()); 
-            })
-            .orElseThrow(() -> new InvalidTokenException("Invalid refresh token"));
+        RefreshToken existing = refreshTokenService.findByToken(tokenString)
+                .orElseThrow(() -> new InvalidTokenException("Invalid refresh token"));
+
+        User user = existing.getUser();
+        String roleName = user.getRole().name();
+        Long userId = user.getId();
+
+        RefreshToken rotated = refreshTokenService.rotateRefreshToken(existing);
+        String accessToken = jwtService.generateToken(userId.toString(), roleName);
+
+        return new AuthResult(accessToken, rotated.getToken(), roleName);
     }
 
     @Transactional

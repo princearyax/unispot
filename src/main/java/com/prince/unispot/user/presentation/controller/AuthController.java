@@ -50,12 +50,15 @@ public class AuthController {
 
     //@CookieValue automatically extracts the token from the HTTP request header
     @PostMapping("/refresh")
-    public ResponseEntity<AuthResponse> refresh(@CookieValue(name = "refreshToken") String refreshToken) {
+    //setting required as false, so if no cookie, then will return 401 fires
+    public ResponseEntity<AuthResponse> refresh(@CookieValue(name = "refreshToken", required = false) String refreshToken) {
         if (refreshToken == null || refreshToken.isBlank()) {
             throw new InvalidTokenException("Refresh token cookie missing.");
         }
         AuthResult result = authService.refreshToken(refreshToken);
-        return ResponseEntity.ok(new AuthResponse(result.accessToken(), result.role()));
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, createCookie(result.refreshToken(), REFRESH_TOKEN_EXPIRATION_SECONDS).toString())
+                .body(new AuthResponse(result.accessToken(), result.role()));
     }
 
     @PostMapping("/logout")
