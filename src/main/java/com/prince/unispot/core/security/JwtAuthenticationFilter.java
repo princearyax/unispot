@@ -14,6 +14,8 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import io.jsonwebtoken.Claims;
+
 import java.io.IOException;
 import java.util.Collections;
 
@@ -40,31 +42,32 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         final String jwt = authHeader.substring(7); //beginIdx
-        final String userId;
-        final String role;
 
         try {
-            userId = jwtService.extractUserId(jwt);
-            role = jwtService.extractRole(jwt);
             
-            //if token is valid and context is empty (not already authenticated)
-            if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                
-                if (jwtService.isTokenValid(jwt)) {
+            //if not already authenticated
+            if (SecurityContextHolder.getContext().getAuthentication() == null) {
+
+                // Single cryptographic verification + expiration check
+                Claims claims = jwtService.parseAndValidateClaims(jwt);
+                String userId = claims.getSubject();
+                String role = claims.get("role", String.class);
+
+                if (userId != null && role != null) {
                     //Create the AuthN object. 
                     //We pass userId as the principal. Our AuditorAwareImpl uses this!
                     //it uses three things, principal, credentials, roles
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                            userId, 
-                            null,  //no password, as jwt
+                            userId,
+                            null, //no password, as jwt
                             Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role))//this is how spring implicityly check roles
                     );
-                    
-                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request)); //attaches extra details, user ip, session id
-                    
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));//attaches extra details, user ip, session id
+
                     //populate the Security Context in this virtual thread
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
+                
             }
         } catch (Exception e) {
             // Malformed token, signature exception, or expired token

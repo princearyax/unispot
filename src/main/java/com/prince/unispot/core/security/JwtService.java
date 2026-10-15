@@ -4,12 +4,16 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
-import java.util.function.Function;
+//creates and verifies access token (HS256)
+//key is built once at startup so bad secret will fail
+
 //handles jwt parsing
 //it does cryptographic validation and extraction
 //jwt header.payload(aka claim).signature(crypto hash)
@@ -17,54 +21,39 @@ import java.util.function.Function;
 public class JwtService {
 
     @Value("${unispot.security.jwt.secret}") //pulls from application.prop/yml or env vars at runtime
-    private String secretKey;
+    private String secretKeyRaw;
 
     @Value("${unispot.security.jwt.expiration}")
     private long jwtExpiration;
 
+    private SecretKey signInKey; //cache it
+
+    @PostConstruct 
+    void initKey() {
+        byte[] keyBytes = Decoders.BASE64.decode(secretKeyRaw);//decodes our app.yml secret key(sud be atleast 256 bit, 32 bytes) back
+        this.signInKey = Keys.hmacShaKeyFor(keyBytes);//converts raw bytes into cryptographic secret key( a symmetric way)
+    }
+    
     //for generatibg token, userId is stored as subject
     public String generateToken(String userId, String role) {
+        long now = System.currentTimeMillis();
         return Jwts.builder()
                 .claim("role", role) // Custom claim for RBAC
-                .subject(userId)     // Standard claim for principal identity
-                .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(new Date(System.currentTimeMillis() + jwtExpiration))
-                .signWith(getSignInKey())
+                .subject(userId) // Standard claim for principal identity
+                .issuedAt(new Date(now))
+                .expiration(new Date(now + jwtExpiration))
+                .signWith(signInKey)
                 .compact();
     }
 
-    // We store the User ID as the "Subject" of the JWT
-    public String extractUserId(String token) {
-        return extractClaim(token, Claims::getSubject);
-    }
-
-    public String extractRole(String token) {
-        return extractClaim(token, claims -> claims.get("role", String.class));
-    }
-
-    public boolean isTokenValid(String token) {
-        return !isTokenExpired(token);
-    }
-
-    private boolean isTokenExpired(String token) {
-        return extractClaim(token, Claims::getExpiration).before(new Date());
-    }
-
-    //using generic, allows to extract one specific piece of data (a claim) from a JWT.
-    //It decrypts, verifies and opens the token , then passes the contents to functional helper to pull out what i exactly asked 
-    //see above how its called
-    //the thing is when Caller call this method they provide a Function and that Function will run with one args(claims) as defined here and called at last: 
-    private <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
-        final Claims claims = Jwts.parser() //sets up jjwt parser engine
-                .verifyWith(getSignInKey()) //calculates hmac, sha hash
+    //pareses verfies and check expiration, one pass
+    //throws JwtException : ExpiredJwtException, SignatureException, etc
+    public Claims parseAndValidateClaims(String token) {
+        return Jwts.parser()
+                .verifyWith(signInKey)
                 .build()
-                .parseSignedClaims(token) //validates expiration, unpack jwt and convert in java obj
-                .getPayload(); //grabs the body (claims) containing user data
-        return claimsResolver.apply(claims); //execute a custom function to get what wantd
+                .parseSignedClaims(token)
+                .getPayload();
     }
 
-    private SecretKey getSignInKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(secretKey); //decodes our app.yml secret key(sud be atleast 256 bit, 32 bytes) back
-        return Keys.hmacShaKeyFor(keyBytes); //converts raw bytes into cryptographic secret key( a symmetric way)
-    }
 }
