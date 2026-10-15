@@ -32,7 +32,8 @@ public class SecurityConfig {
     private final RestAuthenticationEntryPoint restAuthenticationEntryPoint;
     private final RestAccessDeniedHandler restAccessDeniedHandler;
 
-    @Value ("${unispot.security.cors.allowed-origins}")
+    //some defaults
+    @Value("${unispot.security.cors.allowed-origins:http://localhost:5173,http://localhost:3000}")
     private String allowedOriginsRaw;
 
     @Bean
@@ -76,7 +77,7 @@ public class SecurityConfig {
                 .map(String::trim)
                 .filter(origin -> !origin.isEmpty())
                 .toList()); // frontend origin for cors
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         configuration.setAllowCredentials(true); //for refresh token cookie
         
