@@ -112,4 +112,11 @@ public class PlaceService {
         }
     }
 
+    @ org.springframework.transaction.event.TransactionalEventListener(
+        phase = org.springframework.transaction.event.TransactionPhase.AFTER_COMMIT
+    )
+    public void onReviewChanged(com.prince.unispot.core.domain.ReviewChangedEvent event) {
+        recalculateRating(event.placeId());
+    }
+
 }

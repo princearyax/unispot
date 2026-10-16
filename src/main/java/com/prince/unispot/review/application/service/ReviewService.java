@@ -1,5 +1,7 @@
 package com.prince.unispot.review.application.service;
 
+import com.prince.unispot.core.domain.ReviewChangedEvent;
+import com.prince.unispot.core.exception.DuplicateResourceException;
 import com.prince.unispot.core.exception.ResourceNotFoundException;
 import com.prince.unispot.core.security.AuthorizationHelper;
 import com.prince.unispot.place.domain.model.Place;
@@ -11,6 +13,8 @@ import com.prince.unispot.review.presentation.dto.ReviewResponse;
 import com.prince.unispot.user.domain.model.User;
 import com.prince.unispot.user.infrastructure.persistence.UserRepository;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -25,9 +29,11 @@ public class ReviewService {
     private final PlaceRepository placeRepository;
     private final UserRepository userRepository;
     private final AuthorizationHelper authorizationHelper;
+    //observer pattern std way
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
-    public void addReview(Long placeId, ReviewRequest request) {
+    public ReviewResponse addReview(Long placeId, ReviewRequest request) {
         //if not exisst throw 404
         //doing this fires SELECT 1 ... WHERE id = ? LIMIT 1
         //cheaper than SELECT * and can use proxy
@@ -36,6 +42,11 @@ public class ReviewService {
         }
 
         Long currentUserId = Long.valueOf(SecurityContextHolder.getContext().getAuthentication().getName());
+
+        //not allowing same user to add more than one review for one place
+        if (reviewRepository.existsByPlaceIdAndUserId(placeId, currentUserId)) {
+            throw new DuplicateResourceException("You have already reviewed this place.");
+        }
 
         //not using findById() , but this jpa repo method, as
         //only need the fk references to save the review
@@ -50,7 +61,11 @@ public class ReviewService {
                 .comment(request.comment())
                 .build();
 
-        reviewRepository.save(review);
+        Review saved = reviewRepository.save(review);
+        //fires after this transaction successfully commits!
+        eventPublisher.publishEvent(new ReviewChangedEvent(placeId));
+
+        return ReviewResponse.from(saved);
     }
 
     @Transactional(readOnly = true)
@@ -59,15 +74,16 @@ public class ReviewService {
     }
 
     @Transactional
-    public Long deleteReview(Long reviewId) {
+    public void deleteReview(Long reviewId) {
         Review review = reviewRepository.findById(reviewId)
                 .orElseThrow(() -> new ResourceNotFoundException("Review not found with id: " + reviewId));
 
         authorizationHelper.requireOwnerOrAdmin(review.getUser().getId(),
                 "You can only delete your own reviews.");
 
+        
         Long placeId = review.getPlace().getId();
         reviewRepository.delete(review);
-        return placeId;
+        eventPublisher.publishEvent(new ReviewChangedEvent(placeId));
     }
 }

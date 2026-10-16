@@ -9,9 +9,16 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "reviews", indexes = {
-    @Index(name = "idx_review_place_id", columnList = "place_id")
-})
+//so that can get reviews belonging to a place quickly
+@Table(name = "reviews", 
+    indexes = {
+        @Index(name = "idx_review_place_id", columnList = "place_id")
+    },
+    //so can check one user can review one place once only
+    uniqueConstraints = {
+        @UniqueConstraint(name = "uk_review_place_user", columnNames = {"place_id", "user_id"})
+    }
+)
 @Getter
 @Setter
 @Builder

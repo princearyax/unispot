@@ -26,4 +26,7 @@ public interface ReviewRepository extends JpaRepository<Review, Long>{
         WHERE r.place.id = :placeId
     """)
     RatingAggregate calculateAggregate(@Param("placeId") Long placeId);
+
+    //will use it to check if user has already reviewed
+    boolean existsByPlaceIdAndUserId(Long placeId, Long userId);
 } 
