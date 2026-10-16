@@ -8,5 +8,7 @@ import java.io.Serializable;
 public record PlaceSummaryDto(
     Long id,
     String name,
-    Category category
+    Category category,
+    Double averageRating,
+    Integer reviewCount
 ) implements Serializable {}

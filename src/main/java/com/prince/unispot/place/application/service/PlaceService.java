@@ -5,6 +5,7 @@ import com.prince.unispot.core.security.AuthorizationHelper;
 import com.prince.unispot.place.domain.model.Category;
 import com.prince.unispot.place.domain.model.Place;
 import com.prince.unispot.place.infrastructure.persistence.PlaceRepository;
+import com.prince.unispot.place.presentation.dto.CursorPageResponse;
 import com.prince.unispot.place.presentation.dto.PlaceRequest;
 import com.prince.unispot.place.presentation.dto.PlaceResponse;
 import com.prince.unispot.place.presentation.dto.PlaceSummaryDto;
@@ -15,9 +16,7 @@ import lombok.RequiredArgsConstructor;
 
 import java.util.List;
 
-import org.springframework.data.domain.Pageable;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
-// import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,7 +45,7 @@ public class PlaceService {
 
     @Transactional(readOnly = true)
     public PlaceResponse getPlace(Long id) {
-        Place place = placeRepository.findById(id)
+        Place place = placeRepository.findWithImagesById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Place not found with id: " + id));
         return PlaceResponse.from(place);
     }
@@ -56,10 +55,22 @@ public class PlaceService {
     //     return placeRepository.findByCategory(category, pageable);
     // }
 
-    //updated for keyset pagination
+    //update for keyset pagination
     @Transactional(readOnly = true)
-    public List<PlaceSummaryDto> getPlacesByCursor(Category category, Long cursor, Pageable pageable) {
-        return placeRepository.findByCategoryAndIdLessThanOrderByIdDesc(category, cursor, pageable);
+    public CursorPageResponse<PlaceSummaryDto> getPlacesByCursor(Category category, Long cursor, int size) {
+        int safeSize = Math.clamp(size, 1, 100);
+        // fetch safeSize + 1 to detect if another page exists without a COUNT query, another one
+        List<PlaceSummaryDto> fetched = placeRepository.findByCategoryAndIdLessThanOrderByIdDesc(
+                category,
+                cursor != null ? cursor : Long.MAX_VALUE,
+                 org.springframework.data.domain.PageRequest.of(0, safeSize + 1)
+        );
+
+        boolean hasNext = fetched.size() > safeSize;
+        List<PlaceSummaryDto> items = hasNext ? fetched.subList(0, safeSize) : fetched;
+        Long nextCursor = hasNext ? items.getLast().id() : null;
+
+        return new CursorPageResponse<>(items, nextCursor, hasNext);
     }
 
     @Transactional
