@@ -97,6 +97,23 @@ public class GlobalExceptionHandler {
         public ResponseEntity<ErrorResponse> handleUnreadableBody(HttpMessageNotReadableException ex, HttpServletRequest request) {
                 return build(HttpStatus.BAD_REQUEST, "Bad Request", "Malformed request body.", request);
         }
+        //invalid sort column in pageable
+        @ExceptionHandler(org.springframework.data.core.PropertyReferenceException.class)
+        public ResponseEntity<ErrorResponse> handleInvalidSortProperty(
+                org.springframework.data.core.PropertyReferenceException ex,
+                HttpServletRequest request) {
+                return build(HttpStatus.BAD_REQUEST, "Bad Request",
+                        "Invalid sort property: " + ex.getPropertyName(), request);
+        }
+
+
+        @ExceptionHandler(org.springframework.web.bind.MissingRequestCookieException.class)
+        public ResponseEntity<ErrorResponse> handleMissingCookie(
+                org.springframework.web.bind.MissingRequestCookieException ex,
+                HttpServletRequest request) {
+                return build(HttpStatus.UNAUTHORIZED, "Unauthorized",
+                        "Required cookie '" + ex.getCookieName() + "' is missing.", request);
+        }
 
         // 500 for,  unanticipated. 
         @ExceptionHandler(Exception.class)

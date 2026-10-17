@@ -38,7 +38,7 @@ public class AdminBootstrapRunner implements ApplicationRunner {
         }
 
         if (userRepository.existsByEmail(bootstrapEmail)) {
-            log.info("Bootstrap admin already exists — skipping.", bootstrapEmail);
+            log.info("Bootstrap admin {} already exists — skipping.", bootstrapEmail);
             return;
         }
 
@@ -49,6 +49,6 @@ public class AdminBootstrapRunner implements ApplicationRunner {
                 .build();
 
         userRepository.save(admin);
-        log.warn("Bootstrap admin account created for Prince Arya. Rotate this password after first login.", bootstrapEmail);
+        log.warn("Bootstrap admin account created for {}. Rotate this password after first login.", bootstrapEmail);
     }
 }
