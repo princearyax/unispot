@@ -115,6 +115,25 @@ public class GlobalExceptionHandler {
                         "Required cookie '" + ex.getCookieName() + "' is missing.", request);
         }
 
+        //cloudinary errors!
+        // 413 Payload Too Large -- file exceeds spring.servlet.multipart.max-file-size
+        @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+        public ResponseEntity<ErrorResponse> handleMaxUploadSize(
+                org.springframework.web.multipart.MaxUploadSizeExceededException ex,
+                HttpServletRequest request) {
+                return build(HttpStatus.CONTENT_TOO_LARGE, "Payload Too Large",
+                        "Uploaded file exceeds the maximum allowed size of 5MB.", request);
+        }
+
+        // 502 Bad Gateway -- upstream media storage (Cloudinary) failure
+        @ExceptionHandler(FileStorageException.class)
+        public ResponseEntity<ErrorResponse> handleFileStorage(
+                FileStorageException ex,
+                HttpServletRequest request) {
+                log.error("Media storage failure at {}: {}", request.getRequestURI(), ex.getMessage(), ex);
+                return build(HttpStatus.BAD_GATEWAY, "Media Storage Error", ex.getMessage(), request);
+        }
+
         // 500 for,  unanticipated. 
         @ExceptionHandler(Exception.class)
         public ResponseEntity<ErrorResponse> handleGlobalException(Exception ex, HttpServletRequest request) {

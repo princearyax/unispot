@@ -59,6 +59,8 @@ public class Place extends AuditableEntity{
     @Column(name = "image_url")
     @Builder.Default
     private Set<String> imageUrls = new HashSet<>(); //prevents multiple bagfetch
+    //using set, hibernate will create composite pk (place_id, image_url), giving us single targetted dlt and insert
+    //will use cloudinary in folder struc like: unispot/places/ + placeId
 }
 
 

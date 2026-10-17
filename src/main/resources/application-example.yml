@@ -6,6 +6,13 @@ spring:
   threads:
     virtual:
       enabled: true
+
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 5MB      # max size of single image
+      max-request-size: 6MB    # Max total multipart request payload
+      file-size-threshold: 2MB  # Stream to temp disk above 2MB to protect JVM heap  
       
   datasource:
     # url: jdbc:postgresql://
@@ -30,6 +37,8 @@ unispot:
   admin:
     bootstrap-email: ${ADMIN_EMAIL:}
     bootstrap-password: ${ADMIN_PASSWORD:}
+  cloudinary:
+    url: ${CLOUDINARY_URL:} #format: cloudinary://api_key:api_secret@cloud_nam
   security:
     cors:
       allowed-origins: #vite etc, some common
