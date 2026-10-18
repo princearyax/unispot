@@ -27,8 +27,8 @@ spring:
   datasource:
     # url: jdbc:postgresql://
     url: ${DB_URL:jdbc:postgresql://localhost:5432/unispot}
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:password}
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:password}
     
   jpa:
     hibernate:
