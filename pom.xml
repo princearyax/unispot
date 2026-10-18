@@ -96,8 +96,8 @@
 		<!-- Cloudinary SDK -->
 		<dependency>
 			<groupId>com.cloudinary</groupId>
-			<artifactId>cloudinary-http44</artifactId>
-			<version>1.36.0</version>
+			<artifactId>cloudinary-http5</artifactId>
+    		<version>2.3.0</version>
 		</dependency>
 
 		<!-- Lombok, optional: only needeed to build cur project, not to be passedto other projects @Getter, @Setter -->
