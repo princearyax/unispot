@@ -1,0 +1,62 @@
+server:
+  port: ${PORT:8080}
+  shutdown: graceful
+
+spring:
+  application:
+    name: unispot-api
+
+  config:
+    import: optional:file:.env[.properties]
+
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+    
+  # Enable Java 21 Virtual Threads (Project Loom)
+  threads:
+    virtual:
+      enabled: true
+
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 5MB      # max size of single image
+      max-request-size: 6MB    # Max total multipart request payload
+      file-size-threshold: 2MB  # Stream to temp disk above 2MB to protect JVM heap  
+      
+  datasource:
+    # url: jdbc:postgresql://
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/unispot}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:password}
+    
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update} # validate or Flyway in actual production
+    show-sql: ${JPA_SHOW_SQL:false}
+    properties:
+      hibernate:
+        "[format_sql]": true
+  data:
+    web:
+      pageable:
+        max-page-size: 100 #so put ceiling on client request
+
+# Custom properties for JWT and Cloudinary
+unispot:
+  admin:
+    bootstrap-email: ${ADMIN_EMAIL:} #no default setting here
+    bootstrap-password: ${ADMIN_PASSWORD:}
+  cloudinary:
+    url: ${CLOUDINARY_URL:} #format: cloudinary://api_key:api_secret@cloud_nam
+  security:
+    cors:
+      allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000} #vite etc, some common
+    jwt:
+      secret: ${JWT_SECRET:}
+      #must be 32 bytes + (256 bit), here raw text hence 32 char
+      expiration: ${JWT_EXPIRATION_MS:900000} # 15 minutes in ms
+      refresh-expiration: ${JWT_REFRESH_MS:604800000} # 7 days in ms
+      refresh-cookie:
+        same-site: ${COOKIE_SAME_SITE:Lax}   #Lax/Strict if frontend+backend share a registrable domain (like both: both *.unispot.com)
+        secure: ${COOKIE_SECURE:false}  # None requires Secure=true by spec, modern browsers exempt localhost from needing real HTTPS for this. special priviledge xd

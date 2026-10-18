@@ -1,0 +1,49 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: unispot-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-unispot}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-unispot}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  unispot-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: unispot-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-unispot}
+      DB_USERNAME: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      JPA_DDL_AUTO: ${JPA_DDL_AUTO:-update}
+      JWT_SECRET: ${JWT_SECRET:-dW5pc3BvdC1kZXYtc2VjcmV0LWtleS1tdXN0LWJlLWF0LWxlYXN0LTMyLWJ5dGVzLWxvbmc=}
+      CLOUDINARY_URL: ${CLOUDINARY_URL:-}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@unispot.dev}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-meowmeow!}
+      COOKIE_SAME_SITE: ${COOKIE_SAME_SITE:-Lax}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+volumes:
+  postgres_data:
