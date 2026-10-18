@@ -1,5 +1,6 @@
 package com.prince.unispot.place.application.service;
 
+import com.prince.unispot.core.application.storage.ImageStorageService;
 import com.prince.unispot.core.exception.ResourceNotFoundException;
 import com.prince.unispot.core.security.AuthorizationHelper;
 import com.prince.unispot.place.domain.model.Category;
@@ -15,10 +16,12 @@ import com.prince.unispot.review.infrastructure.persistence.ReviewRepository;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
@@ -30,6 +33,8 @@ public class PlaceService {
     private final PlaceRepository placeRepository;
     private final ReviewRepository reviewRepository;
     private final AuthorizationHelper authorizationHelper;
+    private final PlaceImageTransactionHelper placeImageTxHelper;
+    private final ImageStorageService imageStorageService;
 
     @Transactional
     public PlaceResponse createPlace(PlaceRequest request) {
@@ -63,7 +68,7 @@ public class PlaceService {
         List<PlaceSummaryDto> fetched = placeRepository.findByCategoryAndIdLessThanOrderByIdDesc(
                 category,
                 cursor != null ? cursor : Long.MAX_VALUE,
-                 org.springframework.data.domain.PageRequest.of(0, safeSize + 1)
+                org.springframework.data.domain.PageRequest.of(0, safeSize + 1)
         );
 
         boolean hasNext = fetched.size() > safeSize;
@@ -94,17 +99,44 @@ public class PlaceService {
         return PlaceResponse.from(saved);
     }
 
-    @Transactional
+    //the orchestrator: intentionally no @Transactional
+    //pre-check of db few ms read
+    //this one upload on VT no hickariCP use
+    //3.save url in phase 3 in helper
+    public PlaceResponse uploadImage(Long placeId, MultipartFile file) {
+        //1
+        placeImageTxHelper.verifyCanUploadImage(placeId);
+
+        //2
+        String uploadedUrl = imageStorageService.uploadPlaceImage(placeId, file);
+
+        // 3: fast DB write with compensating rollback on failure
+        try {
+            return placeImageTxHelper.attachUploadedImageUrl(placeId, uploadedUrl);
+        } catch (RuntimeException ex) {
+            imageStorageService.deleteImageByUrl(uploadedUrl);
+            throw ex;
+        }
+    }
+
+    /**
+     * Intentionally NOT @Transactional at the orchestrator level:
+     * Removes URL from DB first, then deletes asset from Cloudinary after DB commit succeeds.
+     */
+    public PlaceResponse deleteImage(Long placeId, String imageUrl) {
+        PlaceResponse updated = placeImageTxHelper.removeImageUrlFromDb(placeId, imageUrl);
+        imageStorageService.deleteImageByUrl(imageUrl);
+        return updated;
+    }
+
+    /**
+     * Deletes Place and Reviews in a DB transaction, then cleans up all associated Cloudinary images.
+     */
     public void deletePlace(Long placeId) {
-        Place place = placeRepository.findById(placeId)
-                .orElseThrow(() -> new ResourceNotFoundException("Place not found with id: " + placeId));
-
-        authorizationHelper.requireOwnerOrAdmin(place.getCreatedBy(),
-                "You do not have permission to delete this place.");
-
-        //Bulk delete reviews directly in DB (1 query, 0 memory overhead), not relying on cascade removal
-        reviewRepository.deleteByPlaceId(placeId);
-        placeRepository.delete(place);
+        Set<String> urlsToDelete = placeImageTxHelper.deletePlaceFromDbAndReturnImages(placeId, reviewRepository); //will handle bulk dlt review too
+        for (String url : urlsToDelete) {
+            imageStorageService.deleteImageByUrl(url);
+        } 
     }
 
     //call after review write committed
