@@ -13,9 +13,11 @@ import lombok.RequiredArgsConstructor;
 
 import java.net.URI;
 
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/places")
@@ -58,6 +60,23 @@ public class PlaceController {
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<PlaceResponse> updatePlace(@PathVariable Long id, @Valid @RequestBody PlaceUpdateRequest request) {
         return ResponseEntity.ok(placeService.updatePlace(id, request));
+    }
+
+    //uploading uses multipart file
+    @PostMapping(value = "/{id}/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    public ResponseEntity<PlaceResponse> uploadImage(
+            @PathVariable Long id,
+            @RequestParam("file") MultipartFile file) {
+        return ResponseEntity.ok(placeService.uploadImage(id, file));
+    }
+
+    @DeleteMapping("/{id}/images")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    public ResponseEntity<PlaceResponse> deleteImage(
+            @PathVariable Long id,
+            @RequestParam("imageUrl") String imageUrl) {
+        return ResponseEntity.ok(placeService.deleteImage(id, imageUrl));
     }
 
     @DeleteMapping("/{id}")
