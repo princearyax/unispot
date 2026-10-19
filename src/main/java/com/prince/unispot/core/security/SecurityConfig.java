@@ -48,6 +48,11 @@ public class SecurityConfig {
             //defining endpoint authZ, rules evaluated top to bot, so specific ones above
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(CorsUtils::isPreFlightRequest).permitAll() // browser preflight, before any auth check
+                .requestMatchers(
+                        "/v3/api-docs/**",
+                        "/swagger-ui/**",
+                        "/swagger-ui.html"
+                ).permitAll() //for swagger access
                 .requestMatchers("/api/v1/auth/**").permitAll() // 4 registration and login
                 .requestMatchers(HttpMethod.GET, "/api/v1/places/**").permitAll() // for viewing
                 .requestMatchers(HttpMethod.GET, "/api/v1/reviews/**").permitAll() 

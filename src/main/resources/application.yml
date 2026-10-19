@@ -60,3 +60,15 @@ unispot:
       refresh-cookie:
         same-site: ${COOKIE_SAME_SITE:Lax}   #Lax/Strict if frontend+backend share a registrable domain (like both: both *.unispot.com)
         secure: ${COOKIE_SECURE:false}  # None requires Secure=true by spec, modern browsers exempt localhost from needing real HTTPS for this. special priviledge xd
+ 
+# won't leave this in production, allows hacker to see our site map
+springdoc:
+  api-docs:
+    enabled: ${SWAGGER_ENABLED:true}
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: ${SWAGGER_ENABLED:true}
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+    persist-authorization: true # keeps JWT token in Swagger UI even if  refresh the browser tab!
