@@ -8,7 +8,7 @@
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/)
 [![OpenAPI 3](https://img.shields.io/badge/OpenAPI_3.0-Swagger_UI-85EA2D?style=flat-square&logo=swagger&logoColor=black)](https://swagger.io/)
 
-**UniSpot** is a high-concurrency RESTful backend engineered to index and review granular university campus locations (study rooms, cafes, food stalls, libraries, sports facilities) overlooked by global mapping providers.
+**UniSpot** is a high-concurrency RESTful backend engineered to index and review granular university campus locations (study rooms, cafes, food stalls, libraries, sports facilities) overlooked by global mapping providers. It bridges the gap between static university maps and dynamic community interaction.
 
 Built with **Java 21 (Virtual Threads)** and **Spring Boot 4.1.1**, UniSpot focuses on production backend engineering tradeoffs: $O(\log N)$ keyset pagination, optimistic concurrency control (`@Version`) with isolated transaction retries, single-pass JWT verification with rotating `HttpOnly` refresh cookies, and non-transactional cloud media streaming that prevents JDBC connection pool starvation.
 

@@ -1,5 +1,6 @@
 package com.prince.unispot.place.application.service;
 
+import com.prince.unispot.core.application.storage.ImageStorageService;
 import com.prince.unispot.core.security.AuthorizationHelper;
 import com.prince.unispot.place.infrastructure.persistence.PlaceRepository;
 import com.prince.unispot.review.infrastructure.persistence.ReviewRepository;
@@ -23,6 +24,8 @@ class PlaceServiceRatingRetryTest {
     @Mock private PlaceRepository placeRepository;
     @Mock private ReviewRepository reviewRepository;
     @Mock private AuthorizationHelper authorizationHelper;
+    @Mock private PlaceImageTransactionHelper placeImageTxHelper;
+    @Mock private ImageStorageService imageStorageService;
 
     //real obj we testin
     @InjectMocks
