@@ -7,6 +7,10 @@ import com.prince.unispot.user.presentation.dto.AuthResponse;
 import com.prince.unispot.user.presentation.dto.LoginRequest;
 import com.prince.unispot.user.presentation.dto.RegisterRequest;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
@@ -20,6 +24,8 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
+@Tag(name = "1. Authentication", description = "Stateless JWT access tokens + rotating HttpOnly refresh token cookies") //class level , says about the group of api to swagger
+@SecurityRequirements() // we using empty as :we don't want lock icons on /login, /register, public GET... protected will inherit lock icons by "OpenApiConfig" in swagger context
 public class AuthController {
 
     private final AuthService authService;
@@ -32,6 +38,7 @@ public class AuthController {
     private boolean refreshCookieSecure;
 
     @PostMapping("/register")
+    @Operation(summary = "Register a new student account and set HttpOnly refresh cookie") //method level tells in short what it does
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
         AuthResult result = authService.register(request);
         
@@ -41,6 +48,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
+    @Operation(summary = "Authenticate credentials, return JWT access token, and set HttpOnly refresh cookie")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         AuthResult result = authService.login(request);
         return ResponseEntity.ok()
@@ -50,8 +58,11 @@ public class AuthController {
 
     //@CookieValue automatically extracts the token from the HTTP request header
     @PostMapping("/refresh")
+    @Operation(summary = "Rotate refresh token cookie and issue a fresh JWT access token")
     //setting required as false, so if no cookie, then will return 401 fires
-    public ResponseEntity<AuthResponse> refresh(@CookieValue(name = "refreshToken", required = false) String refreshToken) {
+    public ResponseEntity<AuthResponse> refresh(
+        @Parameter (hidden = true) @CookieValue(name = "refreshToken", required = false) String refreshToken
+    ) {
         if (refreshToken == null || refreshToken.isBlank()) {
             throw new InvalidTokenException("Refresh token cookie missing.");
         }
@@ -62,7 +73,10 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(@CookieValue(name = "refreshToken", required = false) String refreshToken) {
+    @Operation(summary = "Revoke refresh token in DB and clear the HttpOnly cookie")
+    public ResponseEntity<Void> logout(
+        @Parameter(hidden = true) @CookieValue(name = "refreshToken", required = false) String refreshToken
+    ) {
         if (refreshToken != null) {
             authService.logout(refreshToken);
         }
@@ -84,3 +98,5 @@ public class AuthController {
 }
 
 //@Valid doesn't do itself it asks hibernate validator, if any fail spring throw MethodArgumentNotValidException before mthod runs
+
+// @Parameter(hidden = true) prevents Swagger UI from trying to inject a manual header and lets the browser send the stored HttpOnly cookie natively.

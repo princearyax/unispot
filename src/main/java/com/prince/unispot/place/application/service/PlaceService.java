@@ -72,7 +72,7 @@ public class PlaceService {
         );
 
         boolean hasNext = fetched.size() > safeSize;
-        List<PlaceSummaryDto> items = hasNext ? fetched.subList(0, safeSize) : fetched;
+        List<PlaceSummaryDto> items = hasNext ? fetched.subList(0, safeSize) : fetched; //or can optimise, just get rid of last..
         Long nextCursor = hasNext ? items.getLast().id() : null;
 
         return new CursorPageResponse<>(items, nextCursor, hasNext);
