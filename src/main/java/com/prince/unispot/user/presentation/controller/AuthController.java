@@ -61,7 +61,7 @@ public class AuthController {
     @Operation(summary = "Rotate refresh token cookie and issue a fresh JWT access token")
     //setting required as false, so if no cookie, then will return 401 fires
     public ResponseEntity<AuthResponse> refresh(
-        @Parameter (hidden = true) @CookieValue(name = "refreshToken", required = false) String refreshToken
+        @Parameter(hidden = true) @CookieValue(name = "refreshToken", required = false) String refreshToken
     ) {
         if (refreshToken == null || refreshToken.isBlank()) {
             throw new InvalidTokenException("Refresh token cookie missing.");
@@ -99,4 +99,4 @@ public class AuthController {
 
 //@Valid doesn't do itself it asks hibernate validator, if any fail spring throw MethodArgumentNotValidException before mthod runs
 
-// @Parameter(hidden = true) prevents Swagger UI from trying to inject a manual header and lets the browser send the stored HttpOnly cookie natively.
+// @Parameter(hidden = true) prevents Swagger UI from trying to inject a manual header or requiring as input and lets the browser send the stored HttpOnly cookie natively. lets Swagger UI fire the POST /api/v1/auth/refresh request directly.

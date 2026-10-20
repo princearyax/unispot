@@ -62,6 +62,7 @@ unispot:
         secure: ${COOKIE_SECURE:false}  # None requires Secure=true by spec, modern browsers exempt localhost from needing real HTTPS for this. special priviledge xd
  
 # won't leave this in production, allows hacker to see our site map
+# we externalise the setting. production containers can set SWAGGER_ENABLED=false to completely disable the OpenAPI beans and UI routes at runtime.
 springdoc:
   api-docs:
     enabled: ${SWAGGER_ENABLED:true}

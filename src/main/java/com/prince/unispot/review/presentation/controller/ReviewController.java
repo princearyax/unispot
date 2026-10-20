@@ -63,3 +63,4 @@ public class ReviewController {
 }
 
 //@ParameterObject, let swagger know its pageable not some complex object
+//in spring its not real JSON payload- its a custom method argument resolved by PageableHandlerMethodArgumentResolver, so we need @ParameterObject to let springdoc's PageableOpenAPIConverter to expand Pageable into discrete page, size, and sort query parameters in the OpenAPI spec
