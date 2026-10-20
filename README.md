@@ -1,181 +1,266 @@
-# unispot
-Community Platform for University Ecosystems
+# UniSpot — Hyperlocal Campus Discovery & Review Backend
 
-> A high-performance, enterprise-grade hyperlocal navigation and discovery backend engineered specifically for specialized campus environments. UniSpot bridges the gap between static university maps and dynamic community interaction by offering real-time place reviews, secure media handling, and robust access controls.
+[![Java](https://img.shields.io/badge/Java-21_LTS-ED8B00?style=flat-square&logo=openjdk&logoColor=white)](https://openjdk.org/projects/jdk/21/)
+[![Spring Boot](https://img.shields.io/badge/Spring_Boot-4.1.1-6DB33F?style=flat-square&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Spring Security](https://img.shields.io/badge/Spring_Security-JWT_%2B_RBAC-6DB33F?style=flat-square&logo=springsecurity&logoColor=white)](https://spring.io/projects/spring-security)
+[![Cloudinary](https://img.shields.io/badge/Cloudinary-Media_Storage-3448C5?style=flat-square&logo=cloudinary&logoColor=white)](https://cloudinary.com/)
+[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/)
+[![OpenAPI 3](https://img.shields.io/badge/OpenAPI_3.0-Swagger_UI-85EA2D?style=flat-square&logo=swagger&logoColor=black)](https://swagger.io/)
 
----
-Note: A Prototype readme, as of now.
----
+**UniSpot** is a high-concurrency RESTful backend engineered to index and review granular university campus locations (study rooms, cafes, food stalls, libraries, sports facilities) overlooked by global mapping providers.
 
-## 🛠️ Tech Stack
-
-*   [![Java](https://img.shields.io/badge/Java-21%20LTS-orange?style=flat-square&logo=openjdk)](https://openjdk.org/projects/jdk/21/)
-*   [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.3%20%2B-brightgreen?style=flat-square&logo=springboot)](https://spring.io/projects/spring-boot)
-*   [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue?style=flat-square&logo=postgresql)](https://www.postgresql.org/)
-*   [![Spring Security](https://img.shields.io/badge/Spring%20Security-JWT-red?style=flat-square&logo=springsecurity)](https://spring.io/projects/spring-security)
-*   [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker)](https://www.docker.com/)
+Built with **Java 21 (Virtual Threads)** and **Spring Boot 4.1.1**, UniSpot focuses on production backend engineering tradeoffs: $O(\log N)$ keyset pagination, optimistic concurrency control (`@Version`) with isolated transaction retries, single-pass JWT verification with rotating `HttpOnly` refresh cookies, and non-transactional cloud media streaming that prevents JDBC connection pool starvation.
 
 ---
 
-## 🏗️ Architecture & Engineering Depth
+## Key Engineering Highlights
 
-UniSpot is built from the ground up for maximum throughput, low latency, and future-proof extensibility:
+### 1. Optimistic Concurrency Control (`@Version`) & Self-Healing Rating Aggregation
+* **Lost-Update Prevention:** `Place` entities track a JPA `@Version` column. Concurrent `PUT /api/v1/places/{id}` updates must supply the known version; stale writes fail fast with `409 Conflict` (`ObjectOptimisticLockingFailureException`) without holding pessimistic `SELECT ... FOR UPDATE` row locks.
+* **Event-Driven `AFTER_COMMIT` Rating Recalculation:** When a student creates or deletes a `Review`, `ReviewService` publishes a `ReviewChangedEvent`. A `@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)` listener triggers `PlaceService.recalculateRating()` *after* the review transaction commits.
+* **Proxy-Safe Retry Isolation (`Propagation.REQUIRES_NEW`):** Each rating recalculation attempt delegates to a dedicated `PlaceRatingUpdater` component annotated with `@Transactional(propagation = Propagation.REQUIRES_NEW)`. This avoids Spring AOP self-invocation traps, provides a fresh `EntityManager` per retry, and computes a self-healing `COALESCE(AVG(r.rating), 0.0), COUNT(r)` aggregate directly in PostgreSQL.
 
-1. **N-Tier Clean Architecture:**
-   * **Controllers:** Handle HTTP semantics, routing, and JSON serialization. Business logic is strictly decoupled.
-   * **Services:** Encapsulate core domain business rules and external integrations (e.g., Cloudinary SDK).
-   * **Repositories:** Manage data persistence and mapping to PostgreSQL using Spring Data JPA.
+### 2. $O(\log N)$ Keyset (Cursor) Pagination & Constructor DTO Projections
+* **Why Keyset Over Offset:** Standard `OFFSET N LIMIT M` pagination forces PostgreSQL to scan and discard $N$ rows ($O(N)$ I/O cost). UniSpot implements cursor pagination (`WHERE p.category = :category AND p.id < :lastId ORDER BY p.id DESC`) backed by a composite B-Tree index `idx_place_category_id (category, id DESC)`.
+* **Zero-`COUNT(*)` `hasNext` Detection:** The service requests `size + 1` rows from PostgreSQL. If `size + 1` rows return, `hasNext` is `true`, the list is sliced to `size`, and `nextCursor` is set to the last item's `id`—eliminating expensive `SELECT COUNT(*)` queries.
+* **Cache-Friendly Record Projections:** Queries project directly into immutable Java 21 `record` DTOs (`PlaceSummaryDto`) rather than full JPA entities, reducing memory footprint and supporting direct Jackson serialization.
 
-2. **Java 21 Virtual Threads (Project Loom):**
-   * Configured via a single line (`spring.threads.virtual.enabled=true`), the JVM maps millions of lightweight virtual threads to a few OS threads. When blocking I/O operations occur—such as waiting for Cloudinary responses over the network—the JVM unmounts the virtual thread, keeping underlying OS resources free to handle other incoming concurrent student requests.
+### 3. Java 21 Virtual Threads & Non-Transactional Cloudinary Streaming
+* **Virtual Threads (`spring.threads.virtual.enabled=true`):** Blocking network I/O automatically unmounts virtual threads from carrier OS threads.
+* **Preventing HikariCP Connection Pool Starvation:** Wrapping slow third-party HTTP calls (like Cloudinary uploads) inside `@Transactional` holds a leased JDBC connection for seconds, exhausting HikariCP under concurrent load. `PlaceService.uploadImage()` uses a **3-phase non-transactional orchestration pattern**:
+  1. **Phase 1 (~2 ms read transaction):** Verify place existence, ownership (`AuthorizationHelper`), and max quota (`<= 5` images), then immediately release the DB connection.
+  2. **Phase 2 (Network I/O outside transaction):** Validate file size (`<= 5MB`), MIME type, and **binary Magic Bytes** (`JPEG`, `PNG`, `WebP` headers), then stream to Cloudinary.
+  3. **Phase 3 (~3 ms write transaction + Compensating Rollback):** Persist the returned `secure_url` into `@ElementCollection Set<String> imageUrls`. If the database transaction fails, a `catch` block executes a compensating `destroy` call to delete the orphaned Cloudinary asset.
 
-3. **Optimistic Concurrency Control (`@Version`):**
-   * Multi-user concurrent review submissions and rating updates on `Place` entities utilize JPA `@Version` annotations. This prevents race conditions and dirty writes during high-concurrency campus events without locking database rows.
+### 4. Stateless JWT Access Tokens + Rotating `HttpOnly` Refresh Cookies
+* **Single-Pass Claims Verification:** `JwtService` caches the HMAC-SHA256 `SecretKey` at startup (`@PostConstruct`) and parses/validates signature, expiration, `sub` (`userId`), and `role` claims in a single pass per request.
+* **Refresh Token Rotation:** Long-lived (7-day) opaque UUID refresh tokens are persisted in PostgreSQL (`refresh_tokens` table) and transmitted exclusively via `HttpOnly`, `SameSite`, path-restricted (`/api/v1/auth`) cookies to mitigate XSS token theft. Calling `/api/v1/auth/refresh` invalidates the used token and rotates a fresh token and cookie.
+* **Filter-Chain Error Consistency:** Custom `RestAuthenticationEntryPoint` (`401`) and `RestAccessDeniedHandler` (`403`) serialize errors inside the Spring Security filter chain using the exact same `ErrorResponse` JSON contract as `GlobalExceptionHandler`.
 
-4. **Database Optimization & Projections:**
-   * Utilizes Spring Data JPA interface-based projections for GET endpoints, ensuring only exact required database columns are fetched to minimize memory overhead and network bandwidth.
+### 5. Hibernate & PostgreSQL Performance Patterns
+* **Sequence ID Batching:** Entities use `GenerationType.SEQUENCE` with explicit `@SequenceGenerator` allocation sizes, avoiding `IDENTITY` insert-time flush bottlenecks.
+* **Unidirectional `@ManyToOne` & Proxy References:** `User` and `Place` intentionally omit `@OneToMany List<Review>` collections to prevent accidental lazy-loading heap exhaustion. Child `Review` insertions use `getReferenceById()` Hibernate proxies after lightweight `existsById()` checks to avoid unnecessary `SELECT *` queries.
+* **Bulk JPQL Deletes:** Deleting a `Place` executes a single `@Modifying @Query("DELETE FROM Review r WHERE r.place.id = :placeId")` bulk delete rather than loading thousands of `Review` entities into JVM memory for cascade deletion.
 
 ---
 
-## 🔒 Security, Authentication & RBAC
+## Project Architecture (Pragmatic Package-by-Feature)
 
-* **JWT Access & Refresh Token Flow:**
-  * **Access Tokens:** Short-lived (15 minutes), transmitted via the `Authorization: Bearer <token>` header.
-  * **Refresh Tokens:** Long-lived (7 days), securely persisted in the database and delivered via an HTTP-only, secure cookie.
-* **Custom Filter Chain:** A custom `OncePerRequestFilter` intercepts requests to validate JWT signatures and populate the SecurityContext.
-* **Role-Based Access Control (RBAC):**
-  * Secured via `@PreAuthorize("hasRole('ADMIN')")`. For example, admin can delete any user or place.
+The codebase is organized by **domain feature** (`user`, `place`, `review`) rather than technical layer, with cross-cutting infrastructure isolated in `core`:
 
-
-Using domain Driven Design (DDD)
-grouping by feature
-
-Isolation of Domain: Notice how the domain/ folder is at the top of each feature. It contains pure Java. It has no dependencies on Spring MVC (the presentation folder) or the database (the infrastructure folder).
-
+```text
 com.prince.unispot
-├── UniSpotApplication.java
-│
-├── core/                               # Cross-cutting concerns (Global)
-│   ├── config/                         # SecurityConfig, JpaAuditingConfig
-│   ├── domain/                         # AuditableEntity (Shared superclasses)
-│   ├── exception/                      # GlobalExceptionHandler
-│   └── security/                       # JwtFilter, SecurityUtils
-│
-├── user/                               # FEATURE: User Identity & Roles
-│   ├── domain/
-│   │   └── model/                      # User, Role (Enum)
-│   ├── application/
-│   │   └── service/                    # AuthService, UserService
-│   ├── infrastructure/
-│   │   └── persistence/                # UserRepository
-│   └── presentation/
-│       ├── controller/                 # AuthController
-│       └── dto/                        # LoginRequest, RegisterRequest
-│
-├── place/                              # FEATURE: Campus Places
-│   ├── domain/
-│   │   ├── model/                      # Place, Category (Enum)
-│   │   └── exception/                  # PlaceNotFoundException
-│   ├── application/
-│   │   └── service/                    # PlaceService
-│   ├── infrastructure/
-│   │   └── persistence/                # PlaceRepository
-│   └── presentation/
-│       ├── controller/                 # PlaceController
-│       └── dto/                        # PlaceResponse (Projections)
-│
-└── review/                             # FEATURE: Ratings & Reviews
-    ├── domain/
-    │   └── model/                      # Review
-    ├── application/
-    │   └── service/                    # ReviewService
-    ├── infrastructure/
-    │   └── persistence/                # ReviewRepository
-    └── presentation/
-        ├── controller/                 # ReviewController
-        └── dto/                        # ReviewRequest
+├── UnispotApplication.java
+├── core/                                   # Cross-cutting concerns
+│   ├── application/storage/                # ImageStorageService (Port)
+│   ├── infrastructure/storage/             # CloudinaryImageStorageService (Adapter + Magic-Byte check)
+│   ├── config/                             # ApplicationConfig, JpaConfig, CloudinaryConfig, OpenApiConfig, AdminBootstrapRunner
+│   ├── domain/                             # BaseTimeEntity, AuditableEntity, ReviewChangedEvent
+│   ├── exception/                          # GlobalExceptionHandler, ErrorResponse, custom exceptions
+│   └── security/                           # SecurityConfig, JwtService, JwtAuthenticationFilter, AuthorizationHelper
+├── user/                                   # Feature: Authentication, Refresh Tokens, & Admin RBAC
+│   ├── domain/model/                       # User, RefreshToken, Role
+│   ├── application/service/                # AuthService, RefreshTokenService, UserAdminService
+│   ├── infrastructure/persistence/         # UserRepository, RefreshTokenRepository
+│   └── presentation/                       # AuthController, AdminController, Auth DTO records
+├── place/                                  # Feature: Campus Places, Cursor Pagination, & Media
+│   ├── domain/model/                       # Place (@Version, @ElementCollection Set<String>), Category
+│   ├── application/service/                # PlaceService, PlaceRatingUpdater, PlaceImageTransactionHelper
+│   ├── infrastructure/persistence/         # PlaceRepository (@EntityGraph, Cursor JPQL)
+│   └── presentation/                       # PlaceController, CursorPageResponse, Place DTO records
+└── review/                                 # Feature: Ratings & Reviews
+    ├── domain/model/                       # Review (Composite unique constraint: place_id + user_id)
+    ├── application/service/                # ReviewService
+    ├── infrastructure/persistence/         # ReviewRepository, RatingAggregate
+    └── presentation/                       # ReviewController, Review DTO records
+```
 
+---
 
-# 📍 UniSpot: Hyperlocal Campus Navigation API
+## Database Schema & Indexing Strategy
 
-UniSpot is an enterprise-grade backend service designed to map and index granular, hyperlocal university campus locations (cafes, study rooms, hidden spots) often overlooked by global mapping providers. 
+* **`users`**: Indexed on `idx_user_email (email UNIQUE)`.
+* **`refresh_tokens`**: Indexed on `idx_refresh_token (token UNIQUE)`. Holds `user_id` FK (`LAZY`) and `expiry_date`.
+* **`places`**: Extends `AuditableEntity` (`created_by`, `created_at`, `updated_at`). Indexed on `idx_place_category_id (category, id DESC)` to serve keyset pagination via index-range scans. Tracks `@Version version`, `average_rating`, and `review_count`.
+* **`place_images`**: `@ElementCollection` join table (`place_id`, `image_url`) backed by a `Set<String>` to ensure targeted delta `INSERT`/`DELETE` statements.
+* **`reviews`**: Indexed on `idx_review_place_id (place_id)` with composite unique constraint `uk_review_place_user (place_id, user_id)` enforcing one review per student per place at the database level.
 
-Built with Java 21 and Spring Boot, it features an optimized N-Tier Clean Architecture designed to handle high-concurrency student traffic via Virtual Threads (Project Loom) and Optimistic Locking.
+---
 
-## 🚀 Tech Stack & Dependencies
+## API Reference
 
-The project relies on modern Java ecosystem standards defined in the `pom.xml`:
-
-*   **Core:** Java 21, Spring Boot 3.x
-*   **Web & Concurrency:** Spring Web (with `spring.threads.virtual.enabled=true`)
-*   **Database & ORM:** PostgreSQL, Spring Data JPA, Hibernate 6
-*   **Security:** Spring Security, JWT (JSON Web Tokens)
-*   **Productivity:** Lombok
-
-## 🏗 System Architecture
-
-The codebase adheres strictly to **Package-by-Feature** and **Clean Architecture (Domain-Driven Design)** principles:
-*   **Domain Isolation:** Entities (`Place`, `User`, `Review`) and Enums are decoupled from web and infrastructure layers.
-*   **Optimistic Concurrency Control:** Prevents "Lost Update" anomalies on Place ratings using JPA `@Version`.
-*   **ID Batching:** Utilizes `GenerationType.SEQUENCE` with `allocationSize` to enable Hibernate JDBC Write-Behind batch inserts.
-*   **Security:** Stateless JWT authentication utilizing short-lived Access Tokens and HTTP-only Refresh Tokens. Role-Based Access Control (RBAC) enforces strict entity ownership (users can only delete their own reviews).
-
-## 🗄️ Database Schema & Relationships
-
-*   **`users`**: Aggregate Root. Extends `BaseTimeEntity`.
-*   **`places`**: Aggregate Root. Extends `AuditableEntity`. Tracks the creator via `created_by` for RBAC. Uses an `@ElementCollection` (Set) for `place_images` to prevent JPA delete anomalies.
-*   **`reviews`**: Associative Entity. Holds `@ManyToOne` foreign keys to both `users` and `places`. 
-
-*(Note: Bidirectional mappings are strictly managed. Aggregates like `User` do not hold `OneToMany` collections of reviews to prevent JVM memory exhaustion during lazy loading).*
-
-## 🔌 API Endpoints Specification
+Interactive **Swagger UI** is available at **`http://localhost:8080/swagger-ui.html`** (raw OpenAPI 3.0 JSON spec at **`http://localhost:8080/v3/api-docs`**).
 
 ### 1. Authentication (`/api/v1/auth`)
-| Method | Endpoint | Description | Access |
+| Method | Endpoint | Description | Auth |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/register` | Register a new student account. | Public |
-| `POST` | `/login` | Authenticate and return JWT Access Token. | Public |
-| `POST` | `/refresh` | Exchange a valid Refresh Cookie for a new Access Token. | Public |
+| `POST` | `/api/v1/auth/register` | Register a student account; returns `accessToken` and sets `HttpOnly` refresh cookie. | Public |
+| `POST` | `/api/v1/auth/login` | Authenticate credentials; returns `accessToken` and sets `HttpOnly` refresh cookie. | Public |
+| `POST` | `/api/v1/auth/refresh` | Rotate `HttpOnly` refresh token cookie and issue a new short-lived `accessToken`. | Cookie (`refreshToken`) |
+| `POST` | `/api/v1/auth/logout` | Delete refresh tokens for the user in DB and clear the `HttpOnly` cookie (`Max-Age=0`). | Cookie (`refreshToken`) |
 
-### 2. Places (`/api/v1/places`)
-| Method | Endpoint | Description | Access |
+### 2. Campus Places (`/api/v1/places`)
+| Method | Endpoint | Description | Auth |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/` | Get paginated places (uses `PlaceSummaryProjection`). | Public |
-| `GET` | `/{id}` | Get detailed view of a specific place including images. | Public |
-| `POST` | `/` | Create a new place on the campus map. | `USER`, `ADMIN` |
-| `DELETE`| `/{id}` | Delete a place (only by Creator or Admin). | Creator, `ADMIN` |
+| `GET` | `/api/v1/places/cursor` | Fetch places by `category`, `lastId` (optional cursor), and `size` (`CursorPageResponse`). | Public |
+| `GET` | `/api/v1/places/{id}` | Fetch full details of a place including eager-loaded `imageUrls` and `@Version`. | Public |
+| `POST` | `/api/v1/places` | Create a new campus place (`createdBy` populated via Spring Data JPA Auditing). | `USER`, `ADMIN` |
+| `PUT` | `/api/v1/places/{id}` | Update a place (requires matching `version` field for optimistic concurrency check). | Creator, `ADMIN` |
+| `POST` | `/api/v1/places/{id}/images` | Upload a place image (`multipart/form-data`, JPEG/PNG/WebP `<= 5MB`, max 5 per place). | Creator, `ADMIN` |
+| `DELETE` | `/api/v1/places/{id}/images` | Remove an image URL from the place and delete the asset from Cloudinary. | Creator, `ADMIN` |
+| `DELETE` | `/api/v1/places/{id}` | Delete a place, bulk-delete its reviews in DB, and purge its Cloudinary images. | Creator, `ADMIN` |
 
 ### 3. Reviews (`/api/v1/reviews`)
-| Method | Endpoint | Description | Access |
+| Method | Endpoint | Description | Auth |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/place/{placeId}` | Get paginated reviews for a specific place. | Public |
-| `POST` | `/place/{placeId}` | Add a review/rating to a place. | `USER` |
-| `DELETE`| `/{id}` | Delete a review (only by Creator or Admin). | Creator, `ADMIN` |
+| `GET` | `/api/v1/reviews/place/{placeId}` | Get paginated reviews for a place (`Slice<ReviewResponse>`, supports `page`, `size`, `sort`). | Public |
+| `POST` | `/api/v1/reviews/place/{placeId}` | Submit a rating (1–5) and comment; triggers `AFTER_COMMIT` place rating recalculation. | `USER`, `ADMIN` |
+| `DELETE` | `/api/v1/reviews/{id}` | Delete a review and recalculate the parent place's rating aggregate. | Creator, `ADMIN` |
 
-## 🛠 Local Setup (Quickstart)
+### 4. Admin (`/api/v1/admin/users`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `PATCH` | `/api/v1/admin/users/{id}/role` | Promote or demote a user's role (`USER` / `ADMIN`). | `ADMIN` |
 
-1.  **Start PostgreSQL** via Docker:
-    ```bash
-    docker run --name unispot-db -e POSTGRES_DB=unispot -e POSTGRES_PASSWORD=password -d -p 5432:5432 postgres:16
+---
 
-    docker exec -it unispot-db psql -U postgres -d unispot -c "UPDATE users SET role = 'ADMIN' WHERE email = 'you@example.com';"
-    ```
-    be sure to login again, to get the new token as admin role
+## Local Setup & Developer Guide
 
-2.  **Environment Variables**: Configure the following in your IDE or `.bashrc`:
-    *   `JWT_SECRET`
-    *   `CLOUDINARY_URL`
-3.  **Run Application**:
-    ```bash
-    ./mvnw spring-boot:run
-    ```
+### Prerequisites
+* **Docker & Docker Compose** (for containerized execution or running PostgreSQL locally)
+* **Java 21 LTS** (only required if running the Spring Boot app directly on your host machine outside Docker)
+* **Git**
 
+---
 
-    ### 🏛️ Clean Architecture & DDD Nomenclature
+### Environment Variables Reference
 
-This project abandons the traditional "Package-by-Layer" monolith in favor of "Package-by-Feature" driven by Domain-Driven Design (DDD) principles. Each bounded context (e.g., `Place`, `Review`) is isolated into four distinct layers:
+All sensitive credentials and environment-specific settings are externalized via environment variables with sensible local defaults in `src/main/resources/application.yml`:
 
-*   **`domain/` (The Core):** Contains the enterprise business logic (Entities, Enums, Interfaces). It represents the purest form of the business rules. It has **zero dependencies** on external frameworks (no Spring imports, no database specific annotations beyond standard JPA).
-*   **`application/` (The Use Cases):** Coordinates the domain objects. It contains Services that implement business workflows (e.g., `PlaceService`). It dictates *what* needs to be done, but delegates the *how* to the infrastructure layer.
-*   **`infrastructure/` (The Adapters):** Contains implementations for external tools. This is where Spring Data JPA Repositories live, translating application queries into PostgreSQL dialects, or where Cloudinary SDK logic resides. It adapts the core domain to the outside world.
-*   **`presentation/` (The Delivery Mechanism):** Contains the REST Controllers and DTOs/Projections. It is strictly responsible for deserializing HTTP requests into Java objects and routing them to the Application layer.
+| Variable | Default (Local Dev) | Description |
+| :--- | :--- | :--- |
+| `PORT` | `8080` | HTTP server port for the Spring Boot application. |
+| `DB_URL` | `jdbc:postgresql://localhost:5432/unispot` | JDBC URL (automatically overridden to `postgres:5432` inside Docker Compose). |
+| `DB_USERNAME` | `postgres` | PostgreSQL database username. |
+| `DB_PASSWORD` | `password` | PostgreSQL database password. |
+| `JPA_DDL_AUTO` | `update` | Hibernate schema mode (`update`, `create-drop`, or `validate`). |
+| `JWT_SECRET` | *(32-byte Base64 dev key)* | **Must be Base64-encoded and >= 256 bits (32 bytes).** Generate via: `openssl rand -base64 32` |
+| `CLOUDINARY_URL` | *(empty — placeholder mode)* | Format: `cloudinary://<api_key>:<api_secret>@<cloud_name>` from your Cloudinary Dashboard. |
+| `ADMIN_EMAIL` | `admin@unispot.dev` | Seeding email used by `AdminBootstrapRunner` on startup (skipped if blank). |
+| `ADMIN_PASSWORD` | `AdminPass123!` | Seeding password for the initial `ADMIN` user (hashed with BCrypt). |
+| `CORS_ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:3000` | Comma-separated list of allowed frontend origins. |
+| `COOKIE_SAME_SITE` | `Lax` | `Lax` for local HTTP testing; set to `None` with `COOKIE_SECURE=true` for cross-site HTTPS. |
+| `COOKIE_SECURE` | `false` | Set to `true` in HTTPS production environments. |
+| `SWAGGER_ENABLED` | `true` | Set to `false` in production to disable `/swagger-ui.html` and `/v3/api-docs`. |
+
+---
+
+### Option 1: Full Docker Compose Setup (Fastest — Zero Local Java/Maven Needed)
+
+This workflow builds the multi-stage `Dockerfile` (Maven + JDK 21 builder stage -> minimal Alpine JRE 21 non-root runtime stage) and starts both PostgreSQL 16 and the UniSpot API on an isolated bridge network.
+
+#### 1. Clone the repository
+```bash
+git clone https://github.com/<your-username>/unispot.git
+cd unispot
+```
+
+#### 2. Configure `.env` (Optional)
+Copy the example environment file. It works out of the box for all auth, place, and review endpoints; add your `CLOUDINARY_URL` if you want to test live cloud image uploads:
+```bash
+cp .env.example .env
+```
+
+#### 3. Build and start the containers
+```bash
+docker compose up --build -d
+```
+* Docker Compose waits for the `unispot-db` PostgreSQL container to pass its `pg_isready` healthcheck before starting `unispot-api`.
+* On first boot, `AdminBootstrapRunner` automatically creates the initial `ADMIN` account (`admin@unispot.dev` / `AdminPass123!`).
+
+#### 4. Verify container health and stream logs
+```bash
+docker compose ps
+docker compose logs -f unispot-api
+```
+
+#### 5. Stopping and cleaning up
+```bash
+# Stop containers while preserving PostgreSQL data volume
+docker compose down
+
+# Stop containers AND wipe the PostgreSQL volume for a clean database reset
+docker compose down -v
+```
+
+---
+
+### Option 2: Hybrid Local Development (PostgreSQL in Docker + Spring Boot in IDE/Maven)
+
+Use this workflow when actively writing code in IntelliJ IDEA or VS Code so you get instant compilation and debugger attachment without rebuilding Docker images.
+
+#### 1. Start only the PostgreSQL 16 database container
+```bash
+docker compose up -d postgres
+```
+*(Or via standalone Docker CLI if not using Compose:)*
+```bash
+docker run --name unispot-db \
+  -e POSTGRES_DB=unispot \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=password \
+  -p 5432:5432 \
+  -d postgres:16-alpine
+```
+
+#### 2. Ensure `application.yml` is present on the classpath
+If `src/main/resources/application.yml` is not yet created locally, copy the template:
+```bash
+cp src/main/resources/application-example.yml src/main/resources/application.yml
+```
+
+#### 3. Export optional environment variables (or set them in your IDE Run Configuration)
+```bash
+export ADMIN_EMAIL="admin@unispot.dev"
+export ADMIN_PASSWORD="AdminPass123!"
+export CLOUDINARY_URL="cloudinary://your_key:your_secret@your_cloud_name"
+```
+
+#### 4. Run the application via the Maven Wrapper
+```bash
+./mvnw spring-boot:run
+```
+The API will start on **`http://localhost:8080`**.
+
+---
+
+### End-to-End Verification & Testing Guide
+
+#### 1. Interactive Testing via Swagger UI
+1. Open **`http://localhost:8080/swagger-ui.html`** in your browser.
+2. Expand **`POST /api/v1/auth/login`**, click **Try it out**, and log in using the bootstrapped Admin account (or register a new user via `/api/v1/auth/register`):
+   ```json
+   {
+     "email": "admin@unispot.dev",
+     "password": "AdminPass123!"
+   }
+   ```
+3. Copy the `accessToken` string from the `200 OK` response body. *(Note: Your browser also automatically receives and stores the `HttpOnly` `refreshToken` cookie).*
+4. Scroll to the top of Swagger UI, click the green **Authorize** button, paste your `accessToken` into the **Value** field, and click **Authorize**.
+5. You can now test all protected endpoints directly from Swagger UI:
+   * Create a campus place via **`POST /api/v1/places`** (`category`: `CAFE`, `LIBRARY`, `PARK`, `FOOD_STALL`, `STUDY_ROOM`, or `SPORTS_FACILITY`).
+   * Upload a photo (`JPEG`, `PNG`, or `WebP` `<= 5MB`) via **`POST /api/v1/places/{id}/images`**.
+   * Post a rating (`1` to `5`) via **`POST /api/v1/reviews/place/{placeId}`**, then call **`GET /api/v1/places/{id}`** to see the updated `averageRating`, `reviewCount`, and incremented `@Version` number.
+   * Test keyset pagination via **`GET /api/v1/places/cursor?category=CAFE&size=5`**.
+
+#### 2. Running Automated Unit & Concurrency Retry Tests
+The test suite uses **JUnit 5** and **Mockito** to verify:
+* Optimistic lock conflict retries and failure thresholds (`PlaceServiceRatingRetryTest`).
+* Compensating Cloudinary asset deletion when database transactions fail (`PlaceImageUploadCompensationTest`).
+* Idempotent admin account seeding (`AdminBootstrapRunnerTest`).
+
+Run the full test suite with:
+```bash
+./mvnw clean test
+```
